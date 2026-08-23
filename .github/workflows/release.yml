@@ -21,11 +21,11 @@ jobs:
             bundles: nsis
             plain: true
           - name: macOS Apple Silicon
-            os: macos-15
+            os: macos-26
             bundles: dmg
             plain: false
           - name: macOS Intel
-            os: macos-15-intel
+            os: macos-26-intel
             bundles: dmg
             plain: false
     runs-on: ${{ matrix.os }}
