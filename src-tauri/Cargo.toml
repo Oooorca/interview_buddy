@@ -1,7 +1,7 @@
 [package]
 name = "interview_buddy"
-version = "0.1.0"
-description = "A private Windows interview companion"
+version = "0.2.0"
+description = "A private cross-platform interview companion"
 authors = ["Oooorca"]
 license = "MIT"
 repository = "https://github.com/Oooorca/interview_buddy"
@@ -17,6 +17,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 base64 = "0.22"
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
+mouse_position = "0.1.4"
 reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls"] }
 raw-window-handle = "0.6"
 serde = { version = "1", features = ["derive"] }
@@ -24,6 +25,9 @@ serde_json = "1"
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-global-shortcut = "2"
 xcap = "0.8"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+screencapturekit = { version = "8", features = ["macos_13_0"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.61", features = [

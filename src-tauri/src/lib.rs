@@ -16,7 +16,14 @@ use tauri::{Emitter, Manager, State};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use xcap::Monitor;
 
+mod audio;
 #[cfg(target_os = "windows")]
+mod system_audio;
+#[cfg(target_os = "macos")]
+#[path = "system_audio_macos.rs"]
+mod system_audio;
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+#[path = "system_audio_unsupported.rs"]
 mod system_audio;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -48,9 +55,7 @@ impl Default for AppSettings {
 struct AppState {
     settings: RwLock<AppSettings>,
     settings_path: PathBuf,
-    #[cfg(target_os = "windows")]
     system_audio: Mutex<Option<system_audio::SystemAudioRecorder>>,
-    #[cfg(target_os = "windows")]
     capture_origin: Mutex<Option<(i32, i32)>>,
 }
 
@@ -116,16 +121,15 @@ fn encode_capture(image: image::RgbaImage) -> Result<CaptureResult, String> {
     })
 }
 
-#[cfg(target_os = "windows")]
 fn cursor_position() -> Result<(i32, i32), String> {
-    use windows::Win32::Foundation::POINT;
-    use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
-    let mut point = POINT::default();
-    unsafe { GetCursorPos(&mut point) }.map_err(|error| format!("读取鼠标位置失败：{error}"))?;
-    Ok((point.x, point.y))
+    use mouse_position::mouse_position::Mouse;
+
+    match Mouse::get_mouse_position() {
+        Mouse::Position { x, y } => Ok((x, y)),
+        Mouse::Error => Err("读取鼠标位置失败".into()),
+    }
 }
 
-#[cfg(target_os = "windows")]
 #[tauri::command]
 fn mark_capture_origin(state: State<'_, AppState>) -> Result<String, String> {
     let point = cursor_position()?;
@@ -136,7 +140,6 @@ fn mark_capture_origin(state: State<'_, AppState>) -> Result<String, String> {
     Ok(format!("已标记截图左上角：{}, {}", point.0, point.1))
 }
 
-#[cfg(target_os = "windows")]
 #[tauri::command]
 fn capture_marked_region(state: State<'_, AppState>) -> Result<CaptureResult, String> {
     let start = *state
@@ -258,7 +261,6 @@ async fn transcribe_audio(
     transcribe_bytes(&settings, bytes, mime_type).await
 }
 
-#[cfg(target_os = "windows")]
 #[tauri::command]
 fn start_system_audio(state: State<'_, AppState>) -> Result<(), String> {
     let mut current = state
@@ -272,7 +274,6 @@ fn start_system_audio(state: State<'_, AppState>) -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(target_os = "windows")]
 #[tauri::command]
 async fn stop_system_audio_and_transcribe(state: State<'_, AppState>) -> Result<String, String> {
     let recorder = state
@@ -548,9 +549,7 @@ pub fn run() {
             app.manage(AppState {
                 settings: RwLock::new(settings),
                 settings_path,
-                #[cfg(target_os = "windows")]
                 system_audio: Mutex::new(None),
-                #[cfg(target_os = "windows")]
                 capture_origin: Mutex::new(None),
             });
             if let Some(window) = app.get_webview_window("main") {
@@ -583,17 +582,17 @@ pub fn run() {
                     .build(app)?;
             }
             let shortcuts = [
-                ("ctrl+shift+s", "capture-full"),
-                ("ctrl+shift+x", "clear"),
-                ("ctrl+shift+1", "capture-origin"),
-                ("ctrl+shift+2", "capture-region"),
-                ("ctrl+shift+comma", "manual-start"),
-                ("ctrl+shift+period", "manual-stop"),
-                ("ctrl+shift+l", "auto-start"),
-                ("ctrl+shift+k", "auto-stop"),
-                ("ctrl+shift+h", "send"),
-                ("ctrl+shift+space", "toggle-window"),
-                ("ctrl+q", "quit"),
+                ("CommandOrControl+Shift+S", "capture-full"),
+                ("CommandOrControl+Shift+X", "clear"),
+                ("CommandOrControl+Shift+1", "capture-origin"),
+                ("CommandOrControl+Shift+2", "capture-region"),
+                ("CommandOrControl+Shift+Comma", "manual-start"),
+                ("CommandOrControl+Shift+Period", "manual-stop"),
+                ("CommandOrControl+Shift+L", "auto-start"),
+                ("CommandOrControl+Shift+K", "auto-stop"),
+                ("CommandOrControl+Shift+H", "send"),
+                ("CommandOrControl+Shift+Space", "toggle-window"),
+                ("CommandOrControl+Q", "quit"),
             ];
             for (shortcut, action) in shortcuts {
                 app.global_shortcut()

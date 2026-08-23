@@ -8,6 +8,8 @@ type Status = "ready" | "working" | "error";
 type ListenMode = "idle" | "manual" | "auto";
 type MicSession = { recorder: MediaRecorder; stream: MediaStream; chunks: Blob[]; mimeType: string };
 const AUTO_CHUNK_MS = 20_000;
+const IS_MAC = navigator.userAgent.includes("Mac");
+const MOD = IS_MAC ? "⌘⇧" : "Ctrl+Shift+";
 
 function App() {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
@@ -240,17 +242,17 @@ function App() {
         if (event.button === 0 && !(event.target as HTMLElement).closest("button")) void getCurrentWindow().startDragging();
       }}>
         <div className={`status-dot ${status} ${mode !== "idle" ? "live" : ""}`} />
-        <button title="截图 Ctrl+Shift+S" onClick={() => void takeFullScreenshot()}><span>▣ 截</span><kbd>S</kbd></button>
-        <button title="清空 Ctrl+Shift+X" onClick={clearContext}><span>⌫ 清</span><kbd>X</kbd></button>
+        <button title={`截图 ${MOD}S`} onClick={() => void takeFullScreenshot()}><span>▣ 截</span><kbd>S</kbd></button>
+        <button title={`清空 ${MOD}X`} onClick={clearContext}><span>⌫ 清</span><kbd>X</kbd></button>
         <span className="divider" />
-        <button className={mode === "manual" ? "active" : ""} title="Ctrl+Shift+, 开始；Ctrl+Shift+. 结束"
+        <button className={mode === "manual" ? "active" : ""} title={`${MOD}, 开始；${MOD}. 结束`}
           onClick={() => void (mode === "manual" ? stopListening("manual") : startListening("manual"))}><span>◉ 听</span><kbd>, / .</kbd></button>
-        <button className={mode === "auto" ? "active" : ""} title="Ctrl+Shift+L 开启；Ctrl+Shift+K 关闭"
+        <button className={mode === "auto" ? "active" : ""} title={`${MOD}L 开启；${MOD}K 关闭`}
           onClick={() => void (mode === "auto" ? stopListening("auto") : startListening("auto"))}><span>∞ 自动</span><kbd>L / K</kbd></button>
         <span className="bar-spacer" data-tauri-drag-region />
         <span className="notice">{notice}</span>
         <button className="icon-button" title="设置" onClick={() => setSettingsOpen((value) => !value)}>⚙</button>
-        <button className="icon-button" title="隐藏 Ctrl+Shift+Space" onClick={() => void getCurrentWindow().hide()}>—</button>
+        <button className="icon-button" title={`隐藏 ${MOD}Space`} onClick={() => void getCurrentWindow().hide()}>—</button>
       </nav>
 
       {settingsOpen ? (
@@ -270,7 +272,7 @@ function App() {
       ) : (
         <section className="workspace">
           <div className="pane input-pane">
-            <header><span>CONTEXT</span><kbd>Ctrl ⇧ H 发送</kbd></header>
+            <header><span>CONTEXT</span><kbd>{IS_MAC ? "⌘ ⇧ H" : "Ctrl ⇧ H"} 发送</kbd></header>
             <div className="attachments">
               {captures.map((capture, index) => (
                 <button className="attachment-card" key={index} onClick={() => setCaptures((items) => items.filter((__, itemIndex) => itemIndex !== index))} title="点击移除">
@@ -290,7 +292,7 @@ function App() {
         </section>
       )}
       <footer className="shortcut-hint">
-        <span>⇧S 全屏截图</span><span>⇧1 / ⇧2 矩形截图</span><span>⇧, / ⇧. 听</span><span>⇧L / ⇧K 自动</span><span>⇧H 发送</span><span>Ctrl+Q 退出</span>
+        <span>⇧S 全屏截图</span><span>⇧1 / ⇧2 矩形截图</span><span>⇧, / ⇧. 听</span><span>⇧L / ⇧K 自动</span><span>⇧H 发送</span><span>{IS_MAC ? "⌘Q" : "Ctrl+Q"} 退出</span>
       </footer>
     </main>
   );
