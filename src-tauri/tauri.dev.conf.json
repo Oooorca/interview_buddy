@@ -1,0 +1,5 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Interview Buddy Dev",
+  "identifier": "com.oooorca.interview-buddy.dev"
+}
