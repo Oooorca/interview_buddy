@@ -30,7 +30,12 @@ pub(super) fn migrate_managed_root(source: &Path, destination: &Path) -> Result<
 pub(super) fn copy_managed_root(source: &Path, destination: &Path) -> Result<(), String> {
     verify_managed_root(source)?;
     verify_managed_root(destination)?;
+    let destination_has_encrypted_settings = destination.join(SETTINGS_FILE).is_file()
+        || destination.join(SETTINGS_BACKUP_FILE).is_file();
     for file in [SETTINGS_FILE, SETTINGS_BACKUP_FILE, LEGACY_SETTINGS_FILE] {
+        if file == LEGACY_SETTINGS_FILE && destination_has_encrypted_settings {
+            continue;
+        }
         let source_settings = source.join(file);
         let destination_settings = destination.join(file);
         if source_settings.is_file() && !destination_settings.exists() {

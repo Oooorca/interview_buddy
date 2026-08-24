@@ -59,9 +59,9 @@ Answers stream into the response pane and are formatted only through React nodes
 
 回答会流式进入右栏，并且只通过 React 节点安全渲染，模型返回的原始 HTML 会被忽略。已完成回答会留在内存中用于追问与回看，但不会写入磁盘。
 
-Settings, WebView data, and other persistent app data use a unified storage root. The default is the platform app-data directory, keeping signed macOS bundles and protected install locations read-only. The **Storage & Cleanup** page can move the data root, restore the default, show disk usage, and schedule safe cache cleanup. A small encrypted `storage-location.secure.json` bootstrap file remains in the platform config directory when a custom path is used.
+Settings, WebView data, and other persistent app data use a unified storage root. The default is the platform local app-data directory's `.interview-buddy` folder (`.interview-buddy-dev` for development), keeping signed macOS bundles and protected install locations read-only. The **Storage & Cleanup** page can move the data root, restore the default, show disk usage, and schedule safe cache cleanup. A small encrypted `storage-location.secure.json` bootstrap file remains in the platform config directory when a custom path is used.
 
-设置、WebView 数据及其他持久化内容统一保存在数据根目录中。默认使用系统应用数据目录，避免修改已签名的 macOS 应用包或受保护的安装目录。“设置 → 存储与清理”可以迁移数据、恢复默认目录、查看占用并安排安全缓存清理；使用自定义目录时，系统配置目录只保留一个很小的加密 `storage-location.secure.json` 引导文件。
+设置、WebView 数据及其他持久化内容统一保存在系统本地应用数据目录下的 `.interview-buddy` 文件夹中（开发版为 `.interview-buddy-dev`），避免修改已签名的 macOS 应用包或受保护的安装目录。“设置 → 存储与清理”可以迁移数据、恢复默认目录、查看占用并安排安全缓存清理；使用自定义目录时，系统配置目录只保留一个很小的加密 `storage-location.secure.json` 引导文件。升级后会从旧的标识符目录或 EXE 同目录 `cache` 复制受管理数据；密文验证成功后，旧便携 `cache` 可以删除。
 
 ### Settings security / 设置安全
 

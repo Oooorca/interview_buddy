@@ -25,7 +25,9 @@ use crate::{
 const POINTER_FILE: &str = "storage-location.secure.json";
 const POINTER_BACKUP_FILE: &str = "storage-location.secure.bak";
 const LEGACY_POINTER_FILE: &str = "storage-location.json";
-const DEFAULT_DATA_DIR: &str = "cache";
+const DEFAULT_DATA_DIR: &str = ".interview-buddy";
+const DEFAULT_DEV_DATA_DIR: &str = ".interview-buddy-dev";
+const LEGACY_PORTABLE_DATA_DIR: &str = "cache";
 const SETTINGS_FILE: &str = "settings.secure.json";
 const SETTINGS_BACKUP_FILE: &str = "settings.secure.bak";
 const LEGACY_SETTINGS_FILE: &str = "settings.json";
@@ -36,9 +38,17 @@ const MAX_PLAINTEXT_POINTER: u64 = 64 * 1024;
 
 fn default_data_dir(service: &str) -> &'static str {
     if service.ends_with(".dev") {
-        "cache-dev"
+        DEFAULT_DEV_DATA_DIR
     } else {
         DEFAULT_DATA_DIR
+    }
+}
+
+fn legacy_default_data_dir(service: &str) -> &'static str {
+    if service.ends_with(".dev") {
+        "cache-dev"
+    } else {
+        LEGACY_PORTABLE_DATA_DIR
     }
 }
 
@@ -83,9 +93,12 @@ impl StorageManager {
         let bootstrap_dir = legacy_settings_path
             .parent()
             .ok_or_else(|| "无法确定应用配置目录".to_string())?;
-        let local_data_dir = legacy_webview_path
+        let app_scoped_data_dir = legacy_webview_path
             .parent()
             .ok_or_else(|| "无法确定应用数据目录".to_string())?;
+        let local_data_dir = app_scoped_data_dir
+            .parent()
+            .ok_or_else(|| "无法确定系统应用数据目录".to_string())?;
         let executable =
             std::env::current_exe().map_err(|error| format!("无法确定程序路径：{error}"))?;
         let executable_dir = executable
@@ -96,7 +109,8 @@ impl StorageManager {
         let pointer_backup_path = bootstrap_dir.join(POINTER_BACKUP_FILE);
         let legacy_bootstrap_pointer = bootstrap_dir.join(LEGACY_POINTER_FILE);
         let legacy_portable_pointer = executable_dir.join(LEGACY_POINTER_FILE);
-        let legacy_portable_root = executable_dir.join(DEFAULT_DATA_DIR);
+        let legacy_portable_root = executable_dir.join(LEGACY_PORTABLE_DATA_DIR);
+        let legacy_default_root = app_scoped_data_dir.join(legacy_default_data_dir(service));
         let default_root = local_data_dir.join(default_data_dir(service));
         let mut pointer = read_secure_pointer(&pointer_path, &key, service)?;
         if pointer.is_none() && pointer_backup_path.is_file() {
@@ -140,7 +154,13 @@ impl StorageManager {
                 service,
             )?;
         } else if pointer.is_none() {
+            if legacy_default_root != data_root
+                && legacy_default_root.join(STORAGE_MARKER).is_file()
+            {
+                copy_managed_root(&legacy_default_root, &data_root)?;
+            }
             if legacy_portable_root != data_root
+                && legacy_portable_root != legacy_default_root
                 && legacy_portable_root.join(STORAGE_MARKER).is_file()
             {
                 copy_managed_root(&legacy_portable_root, &data_root)?;
@@ -169,9 +189,12 @@ impl StorageManager {
         let bootstrap_dir = legacy_settings_path
             .parent()
             .ok_or_else(|| "无法确定应用配置目录".to_string())?;
-        let local_data_dir = legacy_webview_path
+        let app_scoped_data_dir = legacy_webview_path
             .parent()
             .ok_or_else(|| "无法确定应用数据目录".to_string())?;
+        let local_data_dir = app_scoped_data_dir
+            .parent()
+            .ok_or_else(|| "无法确定系统应用数据目录".to_string())?;
         let default_root = prepare_root(&local_data_dir.join(default_data_dir(service)))?;
         Ok(Self {
             active_root: default_root.clone(),
@@ -495,6 +518,24 @@ mod tests {
     }
 
     #[test]
+    fn portable_copy_does_not_restore_plaintext_when_encrypted_settings_exist() {
+        let source = test_root("portable-plaintext-source");
+        let destination = test_root("portable-encrypted-destination");
+        prepare_root(&source).expect("prepare source");
+        prepare_root(&destination).expect("prepare destination");
+        fs::write(source.join(LEGACY_SETTINGS_FILE), b"legacy plaintext").expect("legacy settings");
+        fs::write(destination.join(SETTINGS_FILE), b"encrypted envelope")
+            .expect("encrypted settings");
+
+        copy_managed_root(&source, &destination).expect("copy portable root");
+
+        assert!(!destination.join(LEGACY_SETTINGS_FILE).exists());
+        assert!(source.join(LEGACY_SETTINGS_FILE).is_file());
+        fs::remove_dir_all(source).expect("remove source root");
+        fs::remove_dir_all(destination).expect("remove destination root");
+    }
+
+    #[test]
     fn storage_pointer_is_encrypted_and_bound_to_its_kind() {
         let root = test_root("secure-pointer");
         fs::create_dir_all(&root).expect("root");
@@ -520,10 +561,17 @@ mod tests {
 
     #[test]
     fn development_storage_uses_an_isolated_directory_name() {
-        assert_eq!(default_data_dir("com.oooorca.interview-buddy"), "cache");
+        assert_eq!(
+            default_data_dir("com.oooorca.interview-buddy"),
+            ".interview-buddy"
+        );
         assert_eq!(
             default_data_dir("com.oooorca.interview-buddy.dev"),
-            "cache-dev"
+            ".interview-buddy-dev"
+        );
+        assert_eq!(
+            legacy_default_data_dir("com.oooorca.interview-buddy"),
+            "cache"
         );
     }
 

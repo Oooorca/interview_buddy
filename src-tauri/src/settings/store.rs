@@ -92,11 +92,20 @@ impl SettingsStore {
         };
 
         match store.load_encrypted(&store.settings_path) {
-            Ok(settings) => return Ok((store, settings, LoadStatus::Ready)),
+            Ok(settings) => {
+                let removed_plaintext = remove_plaintext_candidates(plaintext_candidates)?;
+                let status = if removed_plaintext {
+                    LoadStatus::Migrated
+                } else {
+                    LoadStatus::Ready
+                };
+                return Ok((store, settings, status));
+            }
             Err(main_error) if store.settings_path.is_file() => {
                 if let Ok(settings) = store.load_encrypted(&store.backup_path) {
                     store.quarantine_file(&store.settings_path, "corrupt")?;
                     store.save(&settings)?;
+                    remove_plaintext_candidates(plaintext_candidates)?;
                     return Ok((store, settings, LoadStatus::Recovered));
                 }
                 return Err(main_error);
@@ -107,6 +116,7 @@ impl SettingsStore {
         if store.backup_path.is_file() {
             let settings = store.load_encrypted(&store.backup_path)?;
             store.save(&settings)?;
+            remove_plaintext_candidates(plaintext_candidates)?;
             return Ok((store, settings, LoadStatus::Recovered));
         }
 
@@ -138,7 +148,7 @@ impl SettingsStore {
             if verified_json.as_slice() != expected_json.as_slice() {
                 return Err("加密设置迁移校验失败".into());
             }
-            fs::remove_file(candidate).map_err(|error| format!("无法删除旧明文设置：{error}"))?;
+            remove_plaintext_candidates(plaintext_candidates)?;
             return Ok((store, settings, LoadStatus::Migrated));
         }
 
@@ -174,6 +184,18 @@ impl SettingsStore {
         let quarantine = path.with_extension(format!("{label}-{timestamp}"));
         fs::rename(path, quarantine).map_err(|error| format!("无法隔离损坏设置：{error}"))
     }
+}
+
+fn remove_plaintext_candidates(candidates: &[std::path::PathBuf]) -> Result<bool, String> {
+    let mut removed = false;
+    for candidate in candidates {
+        if candidate.is_file() {
+            fs::remove_file(candidate)
+                .map_err(|error| format!("无法删除已迁移的旧明文设置：{error}"))?;
+            removed = true;
+        }
+    }
+    Ok(removed)
 }
 
 pub fn atomic_write_new(path: &Path, bytes: &[u8]) -> Result<(), String> {
@@ -299,6 +321,34 @@ mod tests {
             SettingsStore::bootstrap_with_key("test.app", root.path(), &[], key).unwrap();
         assert_eq!(status, LoadStatus::Ready);
         assert_eq!(loaded.api_key.expose(), "current-key");
+    }
+
+    #[test]
+    fn valid_encrypted_settings_remove_stale_plaintext_candidates() {
+        let root = tempfile::tempdir().unwrap();
+        let legacy = tempfile::tempdir().unwrap();
+        let key = Zeroizing::new(vec![9u8; 32]);
+        let (store, _, _) =
+            SettingsStore::bootstrap_with_key("test.app", root.path(), &[], key.clone()).unwrap();
+        store.save(&configured_settings("encrypted-key")).unwrap();
+        let stale = legacy.path().join("settings.json");
+        fs::write(
+            &stale,
+            serde_json::to_vec(&configured_settings("stale-key")).unwrap(),
+        )
+        .unwrap();
+
+        let (_store, loaded, status) = SettingsStore::bootstrap_with_key(
+            "test.app",
+            root.path(),
+            std::slice::from_ref(&stale),
+            key,
+        )
+        .unwrap();
+
+        assert_eq!(status, LoadStatus::Migrated);
+        assert_eq!(loaded.api_key.expose(), "encrypted-key");
+        assert!(!stale.exists());
     }
 
     #[test]

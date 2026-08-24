@@ -92,19 +92,37 @@ pub fn run() {
             let service = app.config().identifier.clone();
             let old_settings_path = config_dir.join("settings.json");
             let old_webview_path = app.path().app_local_data_dir()?.join("EBWebView");
-            let default_data_dir = if service.ends_with(".dev") {
-                "cache-dev"
+            let (default_data_dir, legacy_default_data_dir) = if service.ends_with(".dev") {
+                (".interview-buddy-dev", "cache-dev")
             } else {
-                "cache"
+                (".interview-buddy", "cache")
             };
-            let default_data_root = old_webview_path
+            let app_scoped_data_dir = old_webview_path
                 .parent()
-                .ok_or_else(|| "无法确定默认数据目录".to_string())?
+                .ok_or_else(|| "无法确定应用数据目录".to_string())?;
+            let default_data_root = app_scoped_data_dir
+                .parent()
+                .ok_or_else(|| "无法确定系统应用数据目录".to_string())?
                 .join(default_data_dir);
+            let legacy_default_data_root = app_scoped_data_dir.join(legacy_default_data_dir);
+            let portable_data_root = std::env::current_exe()
+                .ok()
+                .and_then(|path| path.parent().map(|parent| parent.join("cache")));
             let key_path = config_dir.join("vault-key-v1.dpapi");
             let encrypted_exists = config_dir.join("storage-location.secure.json").is_file()
+                || config_dir.join("storage-location.secure.bak").is_file()
                 || default_data_root.join("settings.secure.json").is_file()
-                || default_data_root.join("settings.secure.bak").is_file();
+                || default_data_root.join("settings.secure.bak").is_file()
+                || legacy_default_data_root
+                    .join("settings.secure.json")
+                    .is_file()
+                || legacy_default_data_root
+                    .join("settings.secure.bak")
+                    .is_file()
+                || portable_data_root.as_ref().is_some_and(|root| {
+                    root.join("settings.secure.json").is_file()
+                        || root.join("settings.secure.bak").is_file()
+                });
             let legacy_settings_path = app
                 .path()
                 .config_dir()?
@@ -120,6 +138,7 @@ pub fn run() {
                 )?;
                 let plaintext_candidates = vec![
                     storage.active_root().join("settings.json"),
+                    legacy_default_data_root.join("settings.json"),
                     old_settings_path.clone(),
                     legacy_settings_path,
                 ];
