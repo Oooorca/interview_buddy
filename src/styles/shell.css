@@ -1,0 +1,74 @@
+.app-shell {
+  width: 100vw;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: 43px minmax(0, 1fr) 24px;
+  gap: 7px;
+  padding: 1px;
+}
+
+.command-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px 5px 10px;
+  border: 1px solid rgba(255, 255, 255, .13);
+  border-radius: 13px;
+  background: rgba(16, 17, 20, .90);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .30);
+  backdrop-filter: blur(22px) saturate(130%);
+  user-select: none;
+}
+.action-button {
+  height: 31px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(245, 246, 248, .74);
+  font-size: 12px;
+  white-space: nowrap;
+  transition: border-color .15s ease, background .15s ease, color .15s ease, transform .15s ease;
+}
+.action-button kbd { min-width: 19px; padding: 3px 5px; border: 1px solid rgba(255,255,255,.09); border-radius: 5px; background: rgba(255,255,255,.06); color: rgba(255,255,255,.42); font: 8px/1 ui-monospace, SFMono-Regular, Consolas, monospace; text-align: center; }
+.action-button:hover { color: #fff; background: rgba(255, 255, 255, .08); }
+.action-button:active { transform: translateY(1px); }
+.action-button.active { color: #bfffdc; border-color: rgba(80, 224, 144, .25); background: rgba(52, 203, 118, .13); }
+.action-button.active kbd { border-color: rgba(95,224,151,.18); color: rgba(191,255,220,.68); }
+.action-button.answer-mode.active { color: #d8dfff; border-color: rgba(118, 142, 255, .34); background: rgba(91, 112, 222, .18); }
+.action-button.answer-mode.active kbd { border-color: rgba(135, 156, 255, .25); color: rgba(213, 221, 255, .72); }
+.action-button:disabled { opacity: .35; pointer-events: none; transform: none; }
+.window-controls-divider { width: 1px; height: 18px; margin-left: 2px; background: rgba(255, 255, 255, .09); }
+.window-controls { display: flex; align-items: center; gap: 3px; }
+.window-control {
+  width: 31px;
+  height: 31px;
+  flex: 0 0 31px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(245, 246, 248, .56);
+  transition: border-color .15s ease, background .15s ease, color .15s ease, transform .15s ease;
+}
+.window-control svg { width: 15px; height: 15px; display: block; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.window-control:hover { color: #fff; border-color: rgba(255,255,255,.08); background: rgba(255,255,255,.08); }
+.window-control:active { transform: translateY(1px); }
+.window-control.active { color: #dce3ff; border-color: rgba(126,151,255,.22); background: rgba(92,113,208,.16); }
+.window-control.close-button:hover { color: #fff; border-color: rgba(239,89,102,.45); background: rgba(224,74,88,.72); }
+.divider { width: 1px; height: 18px; margin: 0 2px; background: rgba(255, 255, 255, .11); }
+.bar-spacer { flex: 1; height: 100%; }
+.notice { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(232, 235, 240, .42); font-size: 10px; }
+
+.status-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #48dc93; box-shadow: 0 0 10px rgba(72, 220, 147, .55); }
+.status-dot.working { background: #f3c766; box-shadow: 0 0 10px rgba(243, 199, 102, .6); }
+.status-dot.error { background: #ff6d79; box-shadow: 0 0 10px rgba(255, 109, 121, .65); }
+.status-dot.live { animation: live-pulse 1.25s ease-in-out infinite; }
+@keyframes live-pulse { 50% { opacity: .35; transform: scale(.75); } }

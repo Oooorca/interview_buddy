@@ -1,10 +1,21 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AppSettings, AskResult, AudioOutputDevice, ConversationMessage, StorageInfo } from "./types";
+import type {
+  ApiKeyUpdate,
+  AppSettings,
+  AskResult,
+  AudioOutputDevice,
+  ConversationMessage,
+  SecurityResetResult,
+  SettingsLoadResult,
+  SettingsSnapshot,
+  StorageInfo,
+} from "../shared/types";
 
 export const backend = {
-  loadSettings: () => invoke<AppSettings>("load_settings"),
-  saveSettings: (settings: AppSettings) =>
-    invoke<void>("save_settings", { settings }),
+  loadSettings: () => invoke<SettingsLoadResult>("load_settings"),
+  saveSettings: (settings: AppSettings, apiKeyUpdate: ApiKeyUpdate = { action: "keep" }) =>
+    invoke<SettingsSnapshot>("save_settings", { request: { settings, apiKeyUpdate } }),
+  resetSecureSettings: () => invoke<SecurityResetResult>("reset_secure_settings"),
   shortcutWarnings: () => invoke<string[]>("shortcut_warnings"),
   storageInfo: () => invoke<StorageInfo>("storage_info"),
   setStorageRoot: (path: string) => invoke<StorageInfo>("set_storage_root", { path }),

@@ -1,0 +1,62 @@
+.region-selector {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  user-select: none;
+  touch-action: none;
+  background: rgba(5, 7, 11, .27);
+}
+.region-selector-hint {
+  position: fixed;
+  z-index: 2;
+  top: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  padding: 9px 15px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 9px;
+  background: rgba(12, 14, 18, .88);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, .32);
+  color: rgba(255, 255, 255, .88);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.region-selection {
+  position: absolute;
+  z-index: 1;
+  border: 2px solid #7da0ff;
+  background: rgba(125, 160, 255, .06);
+  box-shadow: 0 0 0 99999px rgba(5, 7, 11, .27), 0 0 0 1px rgba(0, 0, 0, .36);
+  pointer-events: none;
+}
+.region-selection::before,
+.region-selection::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #dce5ff;
+  box-shadow: 0 0 0 2px #6389f4;
+}
+.region-selection::before { top: -4px; left: -4px; }
+.region-selection::after { right: -4px; bottom: -4px; }
+.region-selection span {
+  position: absolute;
+  right: -1px;
+  bottom: -27px;
+  padding: 4px 7px;
+  border-radius: 5px;
+  background: rgba(10, 12, 16, .88);
+  color: rgba(255, 255, 255, .82);
+  font: 10px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: nowrap;
+}
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-thumb { border-radius: 6px; background: rgba(255,255,255,.14); }

@@ -6,7 +6,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { backend } from "./tauri";
+import { backend } from "../services/backend";
 
 type Point = { x: number; y: number };
 type Selection = { x: number; y: number; width: number; height: number };

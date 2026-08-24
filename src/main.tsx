@@ -2,9 +2,9 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import App from "./App";
-import RegionSelector from "./RegionSelector";
-import "./styles.css";
+import App from "./app/App";
+import RegionSelector from "./region/RegionSelector";
+import "./styles/index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
