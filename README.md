@@ -42,7 +42,6 @@ A private Windows and macOS interview companion for screenshots, dual-source tra
 
 The General settings page uses a responsive two-column layout for language, audio, storage, and cleanup controls. It controls the interface language and answer language independently: the interface can follow the operating system or use `zh-CN`/`en-US`, while answer language can follow the interface or stay fixed. Changing the interface language applies immediately, while saved settings take effect on the next launch. Default Prompts follow the answer language, but custom Prompts are preserved unchanged. Transcription languages remain independent in the General page's Audio section; English is stored as `en-US` and converted to the provider's expected code only when a request is sent.
 
-Existing settings without language fields migrate to Chinese to preserve their previous behavior. New installations follow the system language and use the same language for answers. Windows installers use the operating-system language when it is Chinese or English, and macOS permission descriptions are localized for both languages.
 
 ### Prompts
 
@@ -74,7 +73,7 @@ Answers stream into the response pane and are formatted only through React nodes
 
 Settings, WebView data, and other persistent app data use a unified storage root. The default is `.interview-buddy` inside the platform local app-data directory; development builds use `.interview-buddy-dev`. This keeps signed macOS bundles and protected install locations read-only.
 
-The **Storage & Cleanup** section under General can move the data root, restore the default, show disk usage, and schedule safe cache cleanup. A small encrypted `storage-location.secure.json` bootstrap file remains in the platform config directory when a custom path is used. Upgrades copy managed data from the old identifier directory or an EXE-adjacent legacy `cache`; that legacy directory can be deleted after the encrypted settings have been successfully loaded from the new location.
+The **Storage & Cleanup** section under General can move the data root, restore the default, show disk usage, and schedule safe cache cleanup. A small encrypted `storage-location.secure.json` bootstrap file remains in the platform config directory when a custom path is used.
 
 The complete persisted settings document is encrypted as `settings.secure.json` with AES-256-GCM and an independently generated nonce on every save. The WebView receives only public settings and whether an API Key exists; it never receives the saved key itself. Windows protects the vault key with current-user DPAPI, while macOS stores it as a non-synchronizing Generic Password in the default login Keychain. Encrypted settings, backups, storage pointers, and vault keys are excluded from safe cache cleanup.
 
