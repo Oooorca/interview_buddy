@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "region-selector-capability",
+  "description": "Minimal permissions for the protected drag-to-select screenshot window",
+  "windows": ["region-selector"],
+  "permissions": ["core:default"]
+}

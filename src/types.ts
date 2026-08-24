@@ -4,14 +4,57 @@ export interface AppSettings {
   model: string;
   visionModel: string;
   transcriptionModel: string;
+  captureMicrophone: boolean;
+  captureSystemAudio: boolean;
+  microphoneDeviceId: string;
+  systemAudioDeviceId: string;
+  myTranscriptionLanguage: string;
+  theirTranscriptionLanguage: string;
+  autoSafeCleanup: boolean;
+  fixedContext: string;
   systemPrompt: string;
   codingPrompt: string;
 }
 
 export interface CaptureResult {
   dataUrl: string;
-  width: number;
-  height: number;
+}
+
+export interface AudioOutputDevice {
+  id: string;
+  name: string;
+  isDefault: boolean;
+}
+
+export interface StorageInfo {
+  dataRoot: string;
+  defaultDataRoot: string;
+  webviewDataRoot: string;
+  totalBytes: number;
+  safeCacheBytes: number;
+  cleanupPending: boolean;
+  restartRequired: boolean;
+  isDefault: boolean;
+}
+
+export interface ConversationMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface AskResult {
+  text: string;
+  cancelled: boolean;
+}
+
+export interface AnswerDelta {
+  requestId: string;
+  delta: string;
+}
+
+export interface AnswerHistoryEntry {
+  prompt: string;
+  answer: string;
 }
 
 export const defaultSettings: AppSettings = {
@@ -20,6 +63,14 @@ export const defaultSettings: AppSettings = {
   model: "gpt-4.1-mini",
   visionModel: "gpt-4.1",
   transcriptionModel: "gpt-4o-mini-transcribe",
+  captureMicrophone: true,
+  captureSystemAudio: true,
+  microphoneDeviceId: "",
+  systemAudioDeviceId: "",
+  myTranscriptionLanguage: "auto",
+  theirTranscriptionLanguage: "auto",
+  autoSafeCleanup: false,
+  fixedContext: "",
   systemPrompt:
     "你是会议实时 Copilot。根据上下文先理解对方意图，再给出自然、简短、可以直接说出口的中文回答；必要时补充要点和一个合适的反问。不要编造事实。",
   codingPrompt:

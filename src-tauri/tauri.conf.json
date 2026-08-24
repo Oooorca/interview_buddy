@@ -13,6 +13,7 @@
     "windows": [
       {
         "label": "main",
+        "create": false,
         "title": "Interview Buddy",
         "width": 880,
         "height": 540,

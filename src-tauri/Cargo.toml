@@ -18,24 +18,28 @@ tauri-build = { version = "2", features = [] }
 base64 = "0.22"
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
 mouse_position = "0.1.4"
-reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls"] }
-raw-window-handle = "0.6"
+reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls", "stream"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tauri = { version = "2", features = ["macos-private-api", "tray-icon"] }
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-dialog = "2"
 tauri-plugin-global-shortcut = "2"
 xcap = "0.8"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 screencapturekit = { version = "8", features = ["macos_13_0"] }
+tauri = { version = "2", features = ["macos-private-api"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
+raw-window-handle = "0.6"
 windows = { version = "0.61", features = [
     "Win32_Foundation",
+    "Win32_Devices_FunctionDiscovery",
     "Win32_Media_Audio",
     "Win32_System_Com",
     "Win32_System_Com_StructuredStorage",
     "Win32_System_Variant",
+    "Win32_UI_Shell_PropertiesSystem",
     "Win32_UI_WindowsAndMessaging",
 ] }
 
