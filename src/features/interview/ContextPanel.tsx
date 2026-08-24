@@ -7,13 +7,15 @@ type ContextPanelProps = {
 };
 
 export function ContextPanel({ value, open, onOpenChange, onValueChange, onSave }: ContextPanelProps) {
+  const { t } = useTranslation();
   return <section className={`context-section fixed-context ${open ? "expanded" : ""}`}>
     <button className="context-section-heading collapsible" onClick={() => onOpenChange(!open)}>
-      <span><b>固定背景</b><em>{value.trim() ? "已保存" : "可选"}</em></span>
+      <span><b>{t("context.fixed")}</b><em>{value.trim() ? t("context.saved") : t("context.optional")}</em></span>
       <i>{open ? "−" : "+"}</i>
     </button>
     {open && <textarea className="fixed-context-input" rows={4} value={value}
       onChange={(event) => onValueChange(event.target.value)} onBlur={onSave}
-      placeholder="简历、岗位要求、项目背景等。自动保存，并在每次回答时使用。" />}
+      placeholder={t("context.placeholder")} />}
   </section>;
 }
+import { useTranslation } from "react-i18next";

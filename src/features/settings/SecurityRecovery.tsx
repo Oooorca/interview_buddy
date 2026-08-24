@@ -5,15 +5,17 @@ type SecurityRecoveryProps = {
 };
 
 export function SecurityRecovery({ message, resetting, onReset }: SecurityRecoveryProps) {
+  const { t } = useTranslation();
   return <section className="security-recovery" role="alert">
     <div className="security-recovery-icon">!</div>
     <div>
-      <strong>加密设置已锁定</strong>
+      <strong>{t("security.locked")}</strong>
       <p>{message}</p>
-      <p>应用不会覆盖现有文件。重置时会先把能够定位的旧设置移入恢复目录。</p>
+      <p>{t("security.preserved")}</p>
       <button className="danger" disabled={resetting} onClick={onReset}>
-        {resetting ? "正在重置…" : "保留旧文件并重置设置"}
+        {resetting ? t("security.resetting") : t("security.reset")}
       </button>
     </div>
   </section>;
 }
+import { useTranslation } from "react-i18next";

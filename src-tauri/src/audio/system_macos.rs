@@ -24,7 +24,7 @@ pub struct AudioOutputDevice {
 pub fn list_output_devices() -> Result<Vec<AudioOutputDevice>, String> {
     Ok(vec![AudioOutputDevice {
         id: String::new(),
-        name: "系统音频（ScreenCaptureKit）".into(),
+        name: "System Audio (ScreenCaptureKit)".into(),
         is_default: true,
     }])
 }

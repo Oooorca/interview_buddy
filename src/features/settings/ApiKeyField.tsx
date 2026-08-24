@@ -7,13 +7,15 @@ type ApiKeyFieldProps = {
 };
 
 export function ApiKeyField({ configured, draft, pendingClear, onDraftChange, onClear }: ApiKeyFieldProps) {
+  const { t } = useTranslation();
   return <label>API Key<div className="api-key-field">
     <input type="password" autoComplete="off" value={draft}
-      placeholder={configured && !pendingClear ? "已保存，不会回显" : "输入 API Key"}
+      placeholder={configured && !pendingClear ? t("api.savedKey") : t("api.enterKey")}
       onChange={(event) => onDraftChange(event.target.value)} />
     <button type="button" disabled={!configured && !draft}
       onClick={onClear}>
-      {pendingClear ? "待清除" : "清除"}
+      {pendingClear ? t("api.pendingClear") : t("api.clearKey")}
     </button>
   </div></label>;
 }
+import { useTranslation } from "react-i18next";

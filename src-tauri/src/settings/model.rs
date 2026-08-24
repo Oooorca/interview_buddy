@@ -10,6 +10,50 @@ pub enum PromptMode {
     Disabled,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum UiLanguage {
+    #[default]
+    #[serde(rename = "system")]
+    System,
+    #[serde(rename = "zh-CN")]
+    ZhCn,
+    #[serde(rename = "en-US")]
+    EnUs,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AnswerLanguage {
+    #[default]
+    #[serde(rename = "follow-ui")]
+    FollowUi,
+    #[serde(rename = "zh-CN")]
+    ZhCn,
+    #[serde(rename = "en-US")]
+    EnUs,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WindowSizePreset {
+    Compact,
+    #[default]
+    Standard,
+    Spacious,
+    Custom,
+}
+
+fn legacy_window_size_preset() -> WindowSizePreset {
+    WindowSizePreset::Spacious
+}
+
+fn default_custom_window_width() -> u32 {
+    880
+}
+
+fn default_custom_window_height() -> u32 {
+    540
+}
+
 #[derive(Clone, Default, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[serde(transparent)]
 pub struct SecretString(pub(crate) String);
@@ -27,6 +71,14 @@ impl SecretString {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct AppSettings {
+    pub(crate) ui_language: UiLanguage,
+    pub(crate) answer_language: AnswerLanguage,
+    #[serde(default = "legacy_window_size_preset")]
+    pub(crate) window_size_preset: WindowSizePreset,
+    #[serde(default = "default_custom_window_width")]
+    pub(crate) custom_window_width: u32,
+    #[serde(default = "default_custom_window_height")]
+    pub(crate) custom_window_height: u32,
     pub(crate) base_url: String,
     pub(crate) api_key: SecretString,
     pub(crate) model: String,
@@ -50,6 +102,11 @@ pub struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
+            ui_language: UiLanguage::System,
+            answer_language: AnswerLanguage::FollowUi,
+            window_size_preset: WindowSizePreset::Standard,
+            custom_window_width: default_custom_window_width(),
+            custom_window_height: default_custom_window_height(),
             base_url: "https://api.openai.com/v1".into(),
             api_key: SecretString::default(),
             model: "gpt-4.1-mini".into(),
@@ -76,6 +133,11 @@ impl std::fmt::Debug for AppSettings {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("AppSettings")
+            .field("ui_language", &self.ui_language)
+            .field("answer_language", &self.answer_language)
+            .field("window_size_preset", &self.window_size_preset)
+            .field("custom_window_width", &self.custom_window_width)
+            .field("custom_window_height", &self.custom_window_height)
             .field("base_url", &self.base_url)
             .field("api_key", &"[REDACTED]")
             .field("model", &self.model)
@@ -88,6 +150,11 @@ impl std::fmt::Debug for AppSettings {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct PublicSettings {
+    pub ui_language: UiLanguage,
+    pub answer_language: AnswerLanguage,
+    pub window_size_preset: WindowSizePreset,
+    pub custom_window_width: u32,
+    pub custom_window_height: u32,
     pub base_url: String,
     pub model: String,
     pub vision_model: String,
@@ -115,6 +182,11 @@ impl Default for PublicSettings {
 impl From<&AppSettings> for PublicSettings {
     fn from(settings: &AppSettings) -> Self {
         Self {
+            ui_language: settings.ui_language,
+            answer_language: settings.answer_language,
+            window_size_preset: settings.window_size_preset,
+            custom_window_width: settings.custom_window_width,
+            custom_window_height: settings.custom_window_height,
             base_url: settings.base_url.clone(),
             model: settings.model.clone(),
             vision_model: settings.vision_model.clone(),
@@ -160,6 +232,11 @@ impl AppSettings {
             ApiKeyUpdate::Clear => SecretString::default(),
         };
         Ok(Self {
+            ui_language: public.ui_language,
+            answer_language: public.answer_language,
+            window_size_preset: public.window_size_preset,
+            custom_window_width: public.custom_window_width.clamp(680, 3_840),
+            custom_window_height: public.custom_window_height.clamp(340, 2_160),
             base_url: public.base_url,
             api_key,
             model: public.model,
@@ -273,5 +350,17 @@ mod tests {
             .apply_update(request(&settings, ApiKeyUpdate::Clear))
             .unwrap();
         assert!(cleared.api_key.is_empty());
+    }
+
+    #[test]
+    fn existing_settings_keep_the_previous_spacious_window_while_new_users_get_standard() {
+        let migrated: AppSettings = serde_json::from_str("{}").unwrap();
+        assert_eq!(migrated.window_size_preset, WindowSizePreset::Spacious);
+        assert_eq!(
+            AppSettings::default().window_size_preset,
+            WindowSizePreset::Standard
+        );
+        assert_eq!(migrated.custom_window_width, 880);
+        assert_eq!(migrated.custom_window_height, 540);
     }
 }

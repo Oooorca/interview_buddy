@@ -1,4 +1,5 @@
 import type { PromptMode } from "../../shared/types";
+import { useTranslation } from "react-i18next";
 
 type PromptEditorProps = {
   title: string;
@@ -21,27 +22,28 @@ export function PromptEditor({
   onModeChange,
   onValueChange,
 }: PromptEditorProps) {
+  const { t } = useTranslation();
   const visibleValue = mode === "default" ? defaultValue : value || "";
   return <section className={`prompt-card ${mode}`}>
     <header className="prompt-card-heading">
       <div><b>{title}</b><span>{description}</span></div>
-      <select aria-label={`${title}模式`} value={mode}
+      <select aria-label={t("prompt.modeLabel", { title })} value={mode}
         onChange={(event) => onModeChange(event.target.value as PromptMode)}>
-        <option value="default">推荐默认</option>
-        <option value="custom">自定义</option>
-        <option value="disabled">禁用</option>
+        <option value="default">{t("prompt.recommended")}</option>
+        <option value="custom">{t("prompt.custom")}</option>
+        <option value="disabled">{t("prompt.disabled")}</option>
       </select>
     </header>
     {mode === "disabled" ? <div className="prompt-disabled-warning">
-      已明确禁用。请求将不携带此 Prompt，回答质量和格式稳定性可能下降。
+      {t("prompt.disabledWarning")}
     </div> : <>
       <textarea rows={rows} value={visibleValue} readOnly={mode === "default"}
         onChange={(event) => onValueChange(event.target.value)} />
       <footer className="prompt-card-footer">
-        <span>{mode === "default" ? "随应用升级自动使用最新内置版本" : `${visibleValue.length} 个字符`}</span>
+        <span>{mode === "default" ? t("prompt.builtinUpgrade") : t("prompt.characterCount", { count: visibleValue.length })}</span>
         {mode === "default"
-          ? <button onClick={() => onModeChange("custom")}>复制为自定义</button>
-          : <button onClick={() => onModeChange("default")}>恢复推荐默认</button>}
+          ? <button onClick={() => onModeChange("custom")}>{t("prompt.copyCustom")}</button>
+          : <button onClick={() => onModeChange("default")}>{t("prompt.restoreDefault")}</button>}
       </footer>
     </>}
   </section>;

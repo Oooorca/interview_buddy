@@ -9,6 +9,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 mod app_state;
 mod audio;
 mod capture;
+mod error;
 mod llm;
 mod security;
 mod settings;
@@ -22,6 +23,7 @@ use capture::region::{
     cancel_region_selection, complete_region_selection, open_region_selector,
     restore_main_after_region,
 };
+use error::AppResult;
 use llm::client::{ask_llm, cancel_llm};
 #[cfg(test)]
 use llm::{
@@ -40,18 +42,17 @@ use transcription::{
 };
 #[cfg(target_os = "windows")]
 use window::query_display_affinity;
-use window::{quit_app, toggle_main_window};
+use window::{
+    apply_window_size, quit_app, remember_window_size, toggle_main_window, window_size_info,
+};
 
 #[tauri::command]
-fn storage_info(state: State<'_, AppState>) -> Result<storage::StorageInfo, String> {
-    state.storage.info()
+fn storage_info(state: State<'_, AppState>) -> AppResult<storage::StorageInfo> {
+    Ok(state.storage.info()?)
 }
 
 #[tauri::command]
-fn set_storage_root(
-    path: String,
-    state: State<'_, AppState>,
-) -> Result<storage::StorageInfo, String> {
+fn set_storage_root(path: String, state: State<'_, AppState>) -> AppResult<storage::StorageInfo> {
     ensure_security_ready(&state)?;
     let settings = state
         .settings
@@ -65,14 +66,14 @@ fn set_storage_root(
         .as_ref()
         .ok_or_else(|| "安全设置存储不可用".to_string())?
         .save(&settings)?;
-    state
+    Ok(state
         .storage
-        .configure_root(std::path::Path::new(path.trim()))
+        .configure_root(std::path::Path::new(path.trim()))?)
 }
 
 #[tauri::command]
-fn schedule_safe_cleanup(state: State<'_, AppState>) -> Result<storage::StorageInfo, String> {
-    state.storage.schedule_cleanup()
+fn schedule_safe_cleanup(state: State<'_, AppState>) -> AppResult<storage::StorageInfo> {
+    Ok(state.storage.schedule_cleanup()?)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -225,6 +226,11 @@ pub fn run() {
             #[cfg(target_os = "windows")]
             let main_builder = main_builder.data_directory(webview_data_path);
             let window = main_builder.build()?;
+            {
+                let state = app.state::<AppState>();
+                let settings = state.settings.read().map_err(|error| error.to_string())?;
+                window::apply_saved_window_size(&window, &settings)?;
+            }
             window.set_content_protected(true)?;
             window.set_always_on_top(true)?;
             window.show()?;
@@ -238,7 +244,7 @@ pub fn run() {
             if let Some(icon) = app.default_window_icon().cloned() {
                 TrayIconBuilder::with_id("interview-buddy-tray")
                     .icon(icon)
-                    .tooltip("Interview Buddy — 点击显示或隐藏")
+                    .tooltip("Interview Buddy")
                     .show_menu_on_left_click(false)
                     .on_tray_icon_event(|tray, event| {
                         if let TrayIconEvent::Click {
@@ -270,7 +276,7 @@ pub fn run() {
                             }
                         })
                 {
-                    let warning = format!("{shortcut}：{error}");
+                    let warning = format!("{shortcut}: {error}");
                     eprintln!("Interview Buddy shortcut unavailable: {warning}");
                     app.state::<AppState>()
                         .shortcut_warnings
@@ -293,6 +299,9 @@ pub fn run() {
             complete_region_selection,
             cancel_region_selection,
             quit_app,
+            window_size_info,
+            apply_window_size,
+            remember_window_size,
             ask_llm,
             cancel_llm,
             transcribe_audio,
@@ -312,7 +321,8 @@ mod tests {
     use super::*;
     use crate::settings::{
         migrate_legacy_settings as migrate_legacy_prompt_settings,
-        migration::resolved_system_prompt, normalize_prompt_settings, PromptMode,
+        migration::resolved_system_prompt, normalize_prompt_settings, AnswerLanguage, PromptMode,
+        UiLanguage,
     };
 
     #[test]
@@ -359,7 +369,7 @@ mod tests {
         assert_eq!(empty.system_prompt_mode, PromptMode::Default);
 
         let mut builtin = AppSettings {
-            system_prompt: Some(settings::system_prompt().into()),
+            system_prompt: Some(settings::system_prompt("zh-CN").into()),
             ..AppSettings::default()
         };
         migrate_legacy_prompt_settings("{}", &mut builtin);
@@ -374,24 +384,48 @@ mod tests {
     }
 
     #[test]
+    fn legacy_settings_keep_the_previous_chinese_behavior() {
+        let mut settings = AppSettings {
+            my_transcription_language: "en".into(),
+            their_transcription_language: "en".into(),
+            ..AppSettings::default()
+        };
+        assert!(migrate_legacy_prompt_settings("{}", &mut settings));
+        assert_eq!(settings.ui_language, UiLanguage::ZhCn);
+        assert_eq!(settings.answer_language, AnswerLanguage::ZhCn);
+        assert_eq!(settings.my_transcription_language, "en-US");
+        assert_eq!(settings.their_transcription_language, "en-US");
+
+        let source = r#"{"uiLanguage":"en-US","answerLanguage":"follow-ui","systemPromptMode":"default","codingPromptMode":"default"}"#;
+        let mut current = AppSettings::default();
+        assert!(!migrate_legacy_prompt_settings(source, &mut current));
+        assert_eq!(current.ui_language, UiLanguage::System);
+        assert_eq!(current.answer_language, AnswerLanguage::FollowUi);
+    }
+
+    #[test]
     fn prompt_modes_resolve_and_normalize_safely() {
         let mut settings = AppSettings::default();
         assert_eq!(
-            resolved_system_prompt(&settings),
-            Some(settings::system_prompt())
+            resolved_system_prompt(&settings, "zh-CN"),
+            Some(settings::system_prompt("zh-CN"))
+        );
+        assert_ne!(
+            settings::system_prompt("zh-CN"),
+            settings::system_prompt("en-US")
         );
 
         settings.system_prompt_mode = PromptMode::Disabled;
         settings.system_prompt = Some("ignored".into());
         assert!(normalize_prompt_settings(&mut settings, true).expect("normalize"));
         assert_eq!(settings.system_prompt, None);
-        assert_eq!(resolved_system_prompt(&settings), None);
+        assert_eq!(resolved_system_prompt(&settings, "zh-CN"), None);
 
         settings.system_prompt_mode = PromptMode::Custom;
         assert!(normalize_prompt_settings(&mut settings, true).is_err());
         settings.system_prompt = Some("custom".into());
         assert!(!normalize_prompt_settings(&mut settings, true).expect("custom"));
-        assert_eq!(resolved_system_prompt(&settings), Some("custom"));
+        assert_eq!(resolved_system_prompt(&settings, "en-US"), Some("custom"));
     }
 
     #[test]

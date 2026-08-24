@@ -1,4 +1,4 @@
-use super::{coding_prompt, system_prompt, AppSettings, PromptMode};
+use super::{coding_prompt, system_prompt, AnswerLanguage, AppSettings, PromptMode, UiLanguage};
 
 const KNOWN_SYSTEM_DEFAULTS: &[&str] = &[
     "你是会议实时 Copilot。根据上下文先理解对方意图，再给出自然、简短、可以直接说出口的中文回答；必要时补充要点和一个合适的反问。不要编造事实。",
@@ -12,10 +12,10 @@ const KNOWN_CODING_DEFAULTS: &[&str] = &[
     "你是算法面试助手。识别截图题目，给出python语言的核心思路、复杂度、可提交代码和边界情况。对于复杂的题目，先给出一个最直观但复杂度较高的解法及代码，再逐步优化到最优解，展现思维过程。",
 ];
 
-fn legacy_prompt_mode(prompt: Option<&str>, current: &str, known: &[&str]) -> PromptMode {
+fn legacy_prompt_mode(prompt: Option<&str>, current: &[&str], known: &[&str]) -> PromptMode {
     let value = prompt.unwrap_or_default().trim();
     if value.is_empty()
-        || value == current.trim()
+        || current.iter().any(|default| default.trim() == value)
         || known.iter().any(|default| default.trim() == value)
     {
         PromptMode::Default
@@ -70,10 +70,26 @@ pub fn normalize_prompt_settings(
 
 pub fn migrate_legacy_settings(source: &str, settings: &mut AppSettings) -> bool {
     let mut changed = false;
+    if settings.my_transcription_language == "en" {
+        settings.my_transcription_language = "en-US".into();
+        changed = true;
+    }
+    if settings.their_transcription_language == "en" {
+        settings.their_transcription_language = "en-US".into();
+        changed = true;
+    }
+    if !source.contains("\"uiLanguage\"") {
+        settings.ui_language = UiLanguage::ZhCn;
+        changed = true;
+    }
+    if !source.contains("\"answerLanguage\"") {
+        settings.answer_language = AnswerLanguage::ZhCn;
+        changed = true;
+    }
     if !source.contains("\"systemPromptMode\"") {
         settings.system_prompt_mode = legacy_prompt_mode(
             settings.system_prompt.as_deref(),
-            system_prompt(),
+            &[system_prompt("zh-CN"), system_prompt("en-US")],
             KNOWN_SYSTEM_DEFAULTS,
         );
         changed = true;
@@ -81,7 +97,7 @@ pub fn migrate_legacy_settings(source: &str, settings: &mut AppSettings) -> bool
     if !source.contains("\"codingPromptMode\"") {
         settings.coding_prompt_mode = legacy_prompt_mode(
             settings.coding_prompt.as_deref(),
-            coding_prompt(),
+            &[coding_prompt("zh-CN"), coding_prompt("en-US")],
             KNOWN_CODING_DEFAULTS,
         );
         changed = true;
@@ -89,9 +105,12 @@ pub fn migrate_legacy_settings(source: &str, settings: &mut AppSettings) -> bool
     changed
 }
 
-pub fn resolved_system_prompt(settings: &AppSettings) -> Option<&str> {
+pub fn resolved_system_prompt<'a>(
+    settings: &'a AppSettings,
+    answer_locale: &str,
+) -> Option<&'a str> {
     match settings.system_prompt_mode {
-        PromptMode::Default => Some(system_prompt()),
+        PromptMode::Default => Some(system_prompt(answer_locale)),
         PromptMode::Custom => settings
             .system_prompt
             .as_deref()

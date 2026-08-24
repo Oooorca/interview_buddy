@@ -6,7 +6,9 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { backend } from "../services/backend";
+import { backend, errorMessage } from "../services/backend";
+import { useTranslation } from "react-i18next";
+import { applyUiLanguage } from "../i18n";
 
 type Point = { x: number; y: number };
 type Selection = { x: number; y: number; width: number; height: number };
@@ -28,15 +30,23 @@ function rectangle(start: Point, end: Point): Selection {
 }
 
 export default function RegionSelector() {
+  const { t } = useTranslation();
   const [start, setStart] = useState<Point | null>(null);
   const [current, setCurrent] = useState<Point | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [hint, setHint] = useState("按住鼠标拖拽选择区域 · Esc 取消");
+  const [hintKey, setHintKey] = useState("region.start");
+  const [hintError, setHintError] = useState("");
   const pointerIdRef = useRef<number | null>(null);
   const selection = useMemo(
     () => start && current ? rectangle(start, current) : null,
     [start, current],
   );
+
+  useEffect(() => {
+    void backend.loadSettings().then((result) => {
+      if (result.state === "ready") applyUiLanguage(result.snapshot.settings.uiLanguage);
+    }).catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -56,7 +66,8 @@ export default function RegionSelector() {
     event.currentTarget.setPointerCapture(event.pointerId);
     setStart(point);
     setCurrent(point);
-    setHint("松开鼠标完成截图 · Esc 取消");
+    setHintError("");
+    setHintKey("region.release");
   }
 
   function move(event: ReactPointerEvent<HTMLDivElement>) {
@@ -74,7 +85,8 @@ export default function RegionSelector() {
     if (finalSelection.width < 3 || finalSelection.height < 3) {
       setStart(null);
       setCurrent(null);
-      setHint("区域太小，请重新拖拽 · Esc 取消");
+      setHintError("");
+      setHintKey("region.tooSmall");
       return;
     }
     setCurrent({
@@ -82,10 +94,12 @@ export default function RegionSelector() {
       y: finalSelection.y + finalSelection.height,
     });
     setSubmitting(true);
-    setHint("正在截取所选区域…");
+    setHintError("");
+    setHintKey("region.capturing");
     void backend.completeRegionSelection(finalSelection).catch((error) => {
       setSubmitting(false);
-      setHint(`截图失败：${String(error)}`);
+      setHintError(errorMessage(error));
+      setHintKey("region.failed");
     });
   }
 
@@ -109,7 +123,7 @@ export default function RegionSelector() {
       }}
       onContextMenu={cancelWithRightClick}
     >
-      <div className="region-selector-hint">{hint}</div>
+      <div className="region-selector-hint">{t(hintKey, { error: hintError })}</div>
       {selection && selection.width > 0 && selection.height > 0 && (
         <div
           className="region-selection"

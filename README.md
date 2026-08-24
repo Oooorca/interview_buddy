@@ -15,6 +15,7 @@ A private Windows and macOS interview companion for screenshots, dual-source tra
 - In-memory conversation context and up to 30 navigable answers
 - Persistent background, editable speaker-separated transcripts, and per-turn input
 - OpenAI-compatible LLM and DashScope ASR
+- Chinese (`zh-CN`) and English (`en-US`) interface and answer languages
 - Movable unified storage root with safe WebView2 cache cleanup
 
 ## Use
@@ -37,6 +38,12 @@ A private Windows and macOS interview companion for screenshots, dual-source tra
 
 ## Behavior
 
+### Languages
+
+The General settings page uses a responsive two-column layout for language, audio, storage, and cleanup controls. It controls the interface language and answer language independently: the interface can follow the operating system or use `zh-CN`/`en-US`, while answer language can follow the interface or stay fixed. Changing the interface language applies immediately, while saved settings take effect on the next launch. Default Prompts follow the answer language, but custom Prompts are preserved unchanged. Transcription languages remain independent in the General page's Audio section; English is stored as `en-US` and converted to the provider's expected code only when a request is sent.
+
+Existing settings without language fields migrate to Chinese to preserve their previous behavior. New installations follow the system language and use the same language for answers. Windows installers use the operating-system language when it is Chinese or English, and macOS permission descriptions are localized for both languages.
+
 ### Prompts
 
 Each Prompt setting has three explicit modes:
@@ -55,7 +62,7 @@ Global shortcuts register independently. If another application already owns one
 
 Transcription keeps both audio sources recording while an adaptive voice-activity detector submits each channel after a natural pause, with maximum-length and idle-buffer safeguards. Automatic answers are an independent policy layered on the same recording session: enabling them starts transcription when needed, while disabling them keeps transcription running.
 
-The Audio settings page lets you independently enable and select the microphone and system-output devices. Your language and the other party's language can each use automatic detection or a different fixed language.
+The Audio section under General lets you independently enable and select the microphone and system-output devices. Your language and the other party's language can each use automatic detection or a different fixed language.
 
 Transcripts are stored separately from the current input and can be edited, deleted, pinned into answer context, or copied into the current turn. Manual sending and automatic answers combine persistent background, recent or pinned transcripts, the current question, screenshots, and bounded in-memory Q/A history.
 
@@ -67,11 +74,9 @@ Answers stream into the response pane and are formatted only through React nodes
 
 Settings, WebView data, and other persistent app data use a unified storage root. The default is `.interview-buddy` inside the platform local app-data directory; development builds use `.interview-buddy-dev`. This keeps signed macOS bundles and protected install locations read-only.
 
-The **Storage & Cleanup** page can move the data root, restore the default, show disk usage, and schedule safe cache cleanup. A small encrypted `storage-location.secure.json` bootstrap file remains in the platform config directory when a custom path is used. Upgrades copy managed data from the old identifier directory or an EXE-adjacent legacy `cache`; that legacy directory can be deleted after the encrypted settings have been successfully loaded from the new location.
+The **Storage & Cleanup** section under General can move the data root, restore the default, show disk usage, and schedule safe cache cleanup. A small encrypted `storage-location.secure.json` bootstrap file remains in the platform config directory when a custom path is used. Upgrades copy managed data from the old identifier directory or an EXE-adjacent legacy `cache`; that legacy directory can be deleted after the encrypted settings have been successfully loaded from the new location.
 
 The complete persisted settings document is encrypted as `settings.secure.json` with AES-256-GCM and an independently generated nonce on every save. The WebView receives only public settings and whether an API Key exists; it never receives the saved key itself. Windows protects the vault key with current-user DPAPI, while macOS stores it as a non-synchronizing Generic Password in the default login Keychain. Encrypted settings, backups, storage pointers, and vault keys are excluded from safe cache cleanup.
-
-On first launch after upgrading, valid legacy `settings.json` and `storage-location.json` files are encrypted, read back, and verified before their plaintext copies are removed. If a key is missing or an encrypted file is damaged or unsupported, Interview Buddy does not fall back to plaintext and does not overwrite the file. It opens a locked recovery page; an explicit reset quarantines files that can be located and creates a new key and default settings. Removing a plaintext file is not claimed to physically erase SSD blocks.
 
 ## macOS
 

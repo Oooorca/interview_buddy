@@ -4,19 +4,24 @@ use super::{
     normalize_prompt_settings, SaveSettingsRequest, SecurityResetResult, SecurityState,
     SettingsLoadResult, SettingsSnapshot,
 };
-use crate::{app_state::AppState, storage};
+use crate::{
+    app_state::AppState,
+    error::{AppError, AppResult},
+    storage,
+};
 
 #[tauri::command]
-pub(crate) fn load_settings(state: State<'_, AppState>) -> Result<SettingsLoadResult, String> {
+pub(crate) fn load_settings(state: State<'_, AppState>) -> AppResult<SettingsLoadResult> {
     if let Some(message) = state
         .security_error
         .read()
         .map_err(|error| error.to_string())?
         .clone()
     {
+        let error = AppError::from_message(message);
         return Ok(SettingsLoadResult::Locked {
-            reason: "decryptFailed".into(),
-            message,
+            reason: error.code().into(),
+            message: error.detail().unwrap_or_default().into(),
         });
     }
     let settings = state.settings.read().map_err(|error| error.to_string())?;
@@ -33,7 +38,7 @@ pub(crate) fn load_settings(state: State<'_, AppState>) -> Result<SettingsLoadRe
 pub(crate) fn save_settings(
     request: SaveSettingsRequest,
     state: State<'_, AppState>,
-) -> Result<SettingsSnapshot, String> {
+) -> AppResult<SettingsSnapshot> {
     ensure_security_ready(&state)?;
     let current = state
         .settings
@@ -71,9 +76,7 @@ pub(crate) fn ensure_security_ready(state: &State<'_, AppState>) -> Result<(), S
 }
 
 #[tauri::command]
-pub(crate) fn reset_secure_settings(
-    state: State<'_, AppState>,
-) -> Result<SecurityResetResult, String> {
+pub(crate) fn reset_secure_settings(state: State<'_, AppState>) -> AppResult<SecurityResetResult> {
     let pointer_quarantine = storage::quarantine_pointer(&state.config_dir)?;
     let (store, settings, quarantine) = super::store::SettingsStore::quarantine_and_reset(
         &state.config_dir,

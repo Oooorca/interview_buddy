@@ -3,6 +3,7 @@ use tauri::State;
 use crate::{
     app_state::AppState,
     audio,
+    error::AppResult,
     settings::{commands::ensure_security_ready, AppSettings},
 };
 
@@ -14,24 +15,24 @@ pub(crate) async fn transcribe_audio(
     bytes: Vec<u8>,
     mime_type: String,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> AppResult<String> {
     ensure_security_ready(&state)?;
     let settings = state
         .settings
         .read()
         .map_err(|error| error.to_string())?
         .clone();
-    transcribe_bytes(
+    Ok(transcribe_bytes(
         &settings,
         bytes,
         mime_type,
         &settings.my_transcription_language,
     )
-    .await
+    .await?)
 }
 
 #[tauri::command]
-pub(crate) fn start_system_audio(state: State<'_, AppState>) -> Result<(), String> {
+pub(crate) fn start_system_audio(state: State<'_, AppState>) -> AppResult<()> {
     ensure_security_ready(&state)?;
     let device_id = state
         .settings
@@ -54,36 +55,36 @@ pub(crate) fn start_system_audio(state: State<'_, AppState>) -> Result<(), Strin
 }
 
 #[tauri::command]
-pub(crate) fn list_system_audio_devices() -> Result<Vec<audio::system::AudioOutputDevice>, String> {
-    audio::system::list_output_devices()
+pub(crate) fn list_system_audio_devices() -> AppResult<Vec<audio::system::AudioOutputDevice>> {
+    Ok(audio::system::list_output_devices()?)
 }
 
 #[tauri::command]
-pub(crate) fn system_audio_level(state: State<'_, AppState>) -> Result<f32, String> {
-    state
+pub(crate) fn system_audio_level(state: State<'_, AppState>) -> AppResult<f32> {
+    Ok(state
         .system_audio
         .lock()
         .map_err(|error| error.to_string())?
         .as_ref()
         .ok_or_else(|| "系统音频尚未开始录制".to_string())?
-        .activity_level()
+        .activity_level()?)
 }
 
 #[tauri::command]
-pub(crate) fn discard_system_audio_chunk(state: State<'_, AppState>) -> Result<(), String> {
-    state
+pub(crate) fn discard_system_audio_chunk(state: State<'_, AppState>) -> AppResult<()> {
+    Ok(state
         .system_audio
         .lock()
         .map_err(|error| error.to_string())?
         .as_ref()
         .ok_or_else(|| "系统音频尚未开始录制".to_string())?
-        .clear_chunk()
+        .clear_chunk()?)
 }
 
 #[tauri::command]
 pub(crate) async fn stop_system_audio_and_transcribe(
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> AppResult<String> {
     ensure_security_ready(&state)?;
     let recorder = state
         .system_audio
@@ -100,19 +101,17 @@ pub(crate) async fn stop_system_audio_and_transcribe(
         .read()
         .map_err(|error| error.to_string())?
         .clone();
-    transcribe_bytes(
+    Ok(transcribe_bytes(
         &settings,
         wav,
         "audio/wav".into(),
         &settings.their_transcription_language,
     )
-    .await
+    .await?)
 }
 
 #[tauri::command]
-pub(crate) async fn transcribe_system_audio_chunk(
-    state: State<'_, AppState>,
-) -> Result<String, String> {
+pub(crate) async fn transcribe_system_audio_chunk(state: State<'_, AppState>) -> AppResult<String> {
     ensure_security_ready(&state)?;
     let wav = {
         let current = state
@@ -132,13 +131,13 @@ pub(crate) async fn transcribe_system_audio_chunk(
         .read()
         .map_err(|error| error.to_string())?
         .clone();
-    transcribe_bytes(
+    Ok(transcribe_bytes(
         &settings,
         wav,
         "audio/wav".into(),
         &settings.their_transcription_language,
     )
-    .await
+    .await?)
 }
 
 async fn transcribe_bytes(
@@ -153,10 +152,11 @@ async fn transcribe_bytes(
     if bytes.is_empty() {
         return Err("录音为空".into());
     }
+    let provider_language = if language == "en-US" { "en" } else { language };
     if dashscope::is_dashscope(&settings.base_url) {
-        dashscope::transcribe(settings, bytes, &mime_type, language).await
+        dashscope::transcribe(settings, bytes, &mime_type, provider_language).await
     } else {
-        openai::transcribe(settings, bytes, &mime_type, language).await
+        openai::transcribe(settings, bytes, &mime_type, provider_language).await
     }
 }
 

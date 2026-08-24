@@ -1,6 +1,28 @@
 export type PromptMode = "default" | "custom" | "disabled";
+export type SupportedLanguage = "zh-CN" | "en-US";
+export type UiLanguage = "system" | SupportedLanguage;
+export type AnswerLanguage = "follow-ui" | SupportedLanguage;
+export type WindowSizePreset = "compact" | "standard" | "spacious" | "custom";
+export type AppStatus = "ready" | "working" | "error";
+
+export interface SecurityIssue {
+  reason: string;
+  message: string;
+}
+
+export interface TranscriptEntry {
+  id: string;
+  speaker: "me" | "them";
+  text: string;
+  pinned: boolean;
+}
 
 export interface AppSettings {
+  uiLanguage: UiLanguage;
+  answerLanguage: AnswerLanguage;
+  windowSizePreset: WindowSizePreset;
+  customWindowWidth: number;
+  customWindowHeight: number;
   baseUrl: string;
   model: string;
   visionModel: string;
@@ -58,6 +80,15 @@ export interface AnswerDelta {
 export interface AnswerHistoryEntry {
   prompt: string;
   answer: string;
+}
+
+export interface WindowSizeInfo {
+  preset: WindowSizePreset;
+  width: number;
+  height: number;
+  monitorWidth: number;
+  monitorHeight: number;
+  scaleFactor: number;
 }
 
 export type ApiKeyUpdate =

@@ -1,11 +1,6 @@
 import type { RefObject } from "react";
-
-export type TranscriptEntry = {
-  id: string;
-  speaker: "me" | "them";
-  text: string;
-  pinned: boolean;
-};
+import { useTranslation } from "react-i18next";
+import type { TranscriptEntry } from "../../shared/types";
 
 type TranscriptPanelProps = {
   entries: TranscriptEntry[];
@@ -19,26 +14,28 @@ type TranscriptPanelProps = {
 };
 
 export function TranscriptPanel(props: TranscriptPanelProps) {
+  const { t } = useTranslation();
+  const speakerName = (speaker: TranscriptEntry["speaker"]) => t(speaker === "me" ? "transcript.me" : "transcript.other");
   return <section className="context-section transcript-section">
     <div className="context-section-heading">
-      <span><b>实时转写</b><em>{props.entries.length ? `${props.entries.length} 条` : "等待语音"}</em></span>
+      <span><b>{t("transcript.title")}</b><em>{props.entries.length ? t("transcript.count", { count: props.entries.length }) : t("transcript.waiting")}</em></span>
       <div className="section-tools">
-        <button disabled={!props.entries.length} onClick={props.onClear} title="仅清空实时转写">清空转写</button>
-        <button disabled={props.answering} onClick={props.onNewSession} title="清空转写、本轮输入、截图和会话回答；保留固定背景">新会话</button>
+        <button disabled={!props.entries.length} onClick={props.onClear} title={t("transcript.clearTitle")}>{t("transcript.clear")}</button>
+        <button disabled={props.answering} onClick={props.onNewSession} title={t("transcript.newSessionTitle")}>{t("transcript.newSession")}</button>
       </div>
     </div>
     <div className="transcript-list" ref={props.listRef}>
-      {!props.entries.length && <div className="transcript-empty">开启听写后，我和对方的语音会分开显示在这里</div>}
+      {!props.entries.length && <div className="transcript-empty">{t("transcript.empty")}</div>}
       {props.entries.map((entry) => (
         <article className={`transcript-entry ${entry.speaker} ${entry.pinned ? "pinned" : ""}`} key={entry.id}>
-          <span className="speaker-badge">{entry.speaker === "me" ? "我" : "对方"}</span>
-          <textarea rows={2} value={entry.text} aria-label={`${entry.speaker === "me" ? "我" : "对方"}的转写内容`}
+          <span className="speaker-badge">{speakerName(entry.speaker)}</span>
+          <textarea rows={2} value={entry.text} aria-label={t("transcript.contentLabel", { speaker: speakerName(entry.speaker) })}
             onChange={(event) => props.onUpdate(entry.id, { text: event.target.value })} />
           <div className="transcript-tools">
-            <button className={entry.pinned ? "active" : ""} title={entry.pinned ? "取消固定" : "固定到回答上下文"}
+            <button className={entry.pinned ? "active" : ""} title={entry.pinned ? t("transcript.unpin") : t("transcript.pin")}
               onClick={() => props.onUpdate(entry.id, { pinned: !entry.pinned })}>⌖</button>
-            <button title="加入本轮输入" onClick={() => props.onAppend(`${entry.speaker === "me" ? "我" : "对方"}：${entry.text}`)}>＋</button>
-            <button title="删除这条转写" onClick={() => props.onRemove(entry.id)}>×</button>
+            <button title={t("transcript.append")} onClick={() => props.onAppend(`${speakerName(entry.speaker)}: ${entry.text}`)}>＋</button>
+            <button title={t("transcript.delete")} onClick={() => props.onRemove(entry.id)}>×</button>
           </div>
         </article>
       ))}

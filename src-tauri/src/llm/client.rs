@@ -6,6 +6,7 @@ use tauri::State;
 use super::stream::{read_answer_stream, request_cancelled};
 use crate::{
     app_state::AppState,
+    error::AppResult,
     settings::{commands::ensure_security_ready, migration::resolved_system_prompt},
 };
 
@@ -47,6 +48,12 @@ pub(crate) struct AskRequest {
     image_data_urls: Vec<String>,
     #[serde(default)]
     history: Vec<ConversationMessage>,
+    #[serde(default = "default_answer_locale")]
+    answer_locale: String,
+}
+
+fn default_answer_locale() -> String {
+    "zh-CN".into()
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -67,7 +74,7 @@ pub(crate) async fn ask_llm(
     request: AskRequest,
     window: tauri::WebviewWindow,
     state: State<'_, AppState>,
-) -> Result<AskResult, String> {
+) -> AppResult<AskResult> {
     ensure_security_ready(&state)?;
     let settings = state
         .settings
@@ -94,7 +101,12 @@ pub(crate) async fn ask_llm(
         (settings.vision_model.clone(), json!(content))
     };
     let mut messages = Vec::new();
-    if let Some(system_prompt) = resolved_system_prompt(&settings) {
+    let answer_locale = if request.answer_locale == "en-US" {
+        "en-US"
+    } else {
+        "zh-CN"
+    };
+    if let Some(system_prompt) = resolved_system_prompt(&settings, answer_locale) {
         messages.push(json!({"role": "system", "content": system_prompt}));
     }
     messages.extend(bounded_history(&request.history));
@@ -121,7 +133,7 @@ pub(crate) async fn ask_llm(
         .await
         .map_err(|error| error.to_string())?;
     if !response.status().is_success() {
-        return Err(response_error(response).await);
+        return Err(response_error(response).await.into());
     }
     let content_type = response
         .headers()
@@ -171,7 +183,7 @@ pub(crate) async fn ask_llm(
                 });
             }
             if !fallback.status().is_success() {
-                return Err(response_error(fallback).await);
+                return Err(response_error(fallback).await.into());
             }
             let fallback_text = fallback
                 .text()
@@ -193,7 +205,7 @@ pub(crate) async fn ask_llm(
 }
 
 #[tauri::command]
-pub(crate) fn cancel_llm(request_id: String, state: State<'_, AppState>) -> Result<(), String> {
+pub(crate) fn cancel_llm(request_id: String, state: State<'_, AppState>) -> AppResult<()> {
     state
         .cancelled_requests
         .lock()

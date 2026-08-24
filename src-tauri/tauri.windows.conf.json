@@ -3,7 +3,9 @@
     "targets": ["nsis"],
     "windows": {
       "nsis": {
-        "installMode": "currentUser"
+        "installMode": "currentUser",
+        "languages": ["English", "SimpChinese"],
+        "displayLanguageSelector": false
       }
     }
   }

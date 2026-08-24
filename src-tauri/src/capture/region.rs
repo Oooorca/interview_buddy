@@ -5,9 +5,12 @@ use std::time::Duration;
 use tauri::{Emitter, Manager, State};
 use xcap::Monitor;
 
-use crate::app_state::{AppState, RegionCaptureSession};
 #[cfg(target_os = "windows")]
 use crate::window::query_display_affinity;
+use crate::{
+    app_state::{AppState, RegionCaptureSession},
+    error::AppResult,
+};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -112,7 +115,7 @@ pub(crate) fn restore_main_after_region(app: &tauri::AppHandle) {
 pub(crate) async fn open_region_selector(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> AppResult<()> {
     if app.get_webview_window("region-selector").is_some() {
         return Err("区域截图选择器已经打开".into());
     }
@@ -142,7 +145,7 @@ pub(crate) async fn open_region_selector(
         "region-selector",
         tauri::WebviewUrl::App("index.html".into()),
     )
-    .title("选择截图区域")
+    .title("Interview Buddy")
     .inner_size(640.0, 480.0)
     .visible(false)
     .focused(true)
@@ -159,7 +162,7 @@ pub(crate) async fn open_region_selector(
         Ok(selector) => selector,
         Err(error) => {
             restore_main_after_region(&app);
-            return Err(format!("无法创建区域截图选择器：{error}"));
+            return Err(format!("无法创建区域截图选择器：{error}").into());
         }
     };
 
@@ -171,7 +174,7 @@ pub(crate) async fn open_region_selector(
     if let Err(error) = configured {
         let _ = selector.close();
         restore_main_after_region(&app);
-        return Err(format!("无法显示区域截图选择器：{error}"));
+        return Err(format!("无法显示区域截图选择器：{error}").into());
     }
 
     #[cfg(target_os = "windows")]
@@ -187,7 +190,7 @@ pub(crate) async fn complete_region_selection(
     selection: RegionSelection,
     app: tauri::AppHandle,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> AppResult<()> {
     if !selection.x.is_finite()
         || !selection.y.is_finite()
         || !selection.width.is_finite()
@@ -238,12 +241,14 @@ pub(crate) async fn complete_region_selection(
         }
     }
     match capture {
-        Ok(result) => app
-            .emit_to("main", "region-captured", result)
-            .map_err(|error| error.to_string()),
+        Ok(result) => {
+            app.emit_to("main", "region-captured", result)
+                .map_err(|error| error.to_string())?;
+            Ok(())
+        }
         Err(error) => {
             let _ = app.emit_to("main", "region-capture-error", error.clone());
-            Err(error)
+            Err(error.into())
         }
     }
 }
@@ -252,7 +257,7 @@ pub(crate) async fn complete_region_selection(
 pub(crate) fn cancel_region_selection(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> AppResult<()> {
     let session = take_region_session(&state);
     let close_result = app
         .get_webview_window("region-selector")
@@ -268,5 +273,5 @@ pub(crate) fn cancel_region_selection(
         .emit_to("main", "region-capture-cancelled", ())
         .map_err(|error| error.to_string());
     close_result?;
-    emit_result
+    Ok(emit_result?)
 }
