@@ -66,8 +66,8 @@ impl Default for AppSettings {
             auto_safe_cleanup: false,
             fixed_context: String::new(),
             transcription_language: "auto".into(),
-            system_prompt: "你是会议实时 Copilot。根据上下文给出自然、简短、可直接说出口的中文回答；必要时补充要点和反问。不要编造事实。".into(),
-            coding_prompt: "你是算法面试助手。识别截图题目，给出核心思路、复杂度、可提交代码和边界情况。".into(),
+            system_prompt: "你是会议实时 Copilot。根据上下文给出自然、简短、可直接说出口的中文回答；必要时补充要点和反问。".into(),
+            coding_prompt: "你是算法面试助手。识别截图题目，给出python语言的核心思路、复杂度、可提交代码和边界情况。对于复杂的题目，先给出一个最直观但复杂度较高的解法及代码，再逐步优化到最优解，展现思维过程。".into(),
         }
     }
 }
