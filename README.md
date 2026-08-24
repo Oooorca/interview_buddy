@@ -7,33 +7,57 @@ A private Windows and macOS interview companion for screenshots, dual-source tra
 ## Features / 功能
 
 - Capture-protected, always-on-top overlay / 屏幕共享不可见的置顶悬浮窗
-- Full-screen and coordinate-based region capture / 全屏与坐标矩形截图
+- Protected drag-to-select region capture / 受保护拖拽框选截图
 - Microphone + system audio transcription (WASAPI / ScreenCaptureKit) / 麦克风与系统音频双路转写
-- Manual and continuous listening modes / 手动与自动监听
+- Natural-pause VAD transcription with optional automatic answers / 基于自然停顿的双路 VAD 听写与可选自动回答
+- Streaming answers with stop control and non-streaming fallback / 可停止的流式回答与普通请求回退
+- Safe Markdown, highlighted code, copy buttons, tables, and LaTeX / 安全 Markdown、代码高亮复制、表格与 LaTeX
+- In-memory conversation context and up to 30 navigable answers / 仅驻内存的会话上下文与最多 30 条可回看回答
+- Persistent background, editable speaker-separated transcripts, and per-turn input / 持久固定背景、分角色可编辑转写与本轮输入
 - OpenAI-compatible LLM and DashScope ASR / OpenAI 兼容 LLM 与百炼语音识别
+- Portable storage root with safe WebView2 cache cleanup / 可迁移统一存储目录与 WebView2 安全缓存清理
 
 ## Use / 使用
 
 1. Download the Windows installer/EXE or macOS DMG from [Releases](https://github.com/Oooorca/interview_buddy/releases).
 2. Open **Settings**, then enter the API Base URL, API Key, and model names.
-3. Add screenshots, text, or transcripts to the left pane. Press `Ctrl+Shift+H` to send.
+3. Add optional persistent background, review live transcripts, then enter the current question or attach screenshots. Press `Ctrl+Shift+I` to send.
 
 1. 从 [Releases](https://github.com/Oooorca/interview_buddy/releases) 下载 Windows 安装包/EXE 或 macOS DMG。
 2. 打开**设置**，填写 API Base URL、API Key 和模型名称。
-3. 将截图、文字或转写内容加入左栏，按 `Ctrl+Shift+H` 发送。
+3. 可填写长期保留的固定背景，检查实时转写，然后输入本轮问题或加入截图；按 `Ctrl+Shift+I` 发送。
 
 | Shortcut / 快捷键 | Action / 功能 |
 | --- | --- |
-| `Mod+Shift+S` | Full-screen capture / 全屏截图 |
-| `Mod+Shift+1`, `Mod+Shift+2` | Mark region and capture / 标记矩形并截图 |
-| `Mod+Shift+,`, `Mod+Shift+.` | Start and stop listening / 开始与结束监听 |
-| `Mod+Shift+L`, `Mod+Shift+K` | Start and stop auto mode / 开启与关闭自动模式 |
-| `Mod+Shift+H` | Send / 发送 |
-| `Mod+Shift+X` | Clear / 清空 |
+| `Mod+Shift+S` | Drag to select and capture a region (`Esc` cancels) / 拖拽框选截图（`Esc` 取消） |
+| `Mod+Shift+L` | Toggle continuous transcription / 开启或关闭听写 |
+| `Mod+Shift+A` | Toggle automatic answers; starts transcription when needed / 开启或关闭自动回答；必要时自动开始听写 |
+| `Mod+Shift+I` | Send / 发送 |
+| `Mod+Shift+C` | Clear current input and screenshots / 清空本轮输入与截图 |
 | `Mod+Shift+Space` | Hide or show / 隐藏或显示 |
 | `Mod+Q` | Quit / 退出 |
 
 `Mod` is `Ctrl` on Windows and `⌘` on macOS. / `Mod` 在 Windows 上是 `Ctrl`，在 macOS 上是 `⌘`。
+
+Global shortcuts register independently. If another application already owns one or more combinations, Interview Buddy still starts and reports the unavailable shortcuts; the corresponding on-screen buttons remain usable.
+
+全局快捷键会逐项独立注册。如果一个或多个组合键已被其他程序占用，Interview Buddy 仍会正常启动并提示不可用项；对应的界面按钮仍可点击使用。
+
+Transcription keeps both audio sources recording while an adaptive voice-activity detector submits each channel after a natural pause, with maximum-length and idle-buffer safeguards. Automatic answers are an independent policy layered on the same recording session: enabling them starts transcription when needed, while disabling them keeps transcription running. The Audio settings page lets you independently enable and select the microphone and system-output devices, and set your language and the other party's language to automatic detection or different fixed languages.
+
+听写会保持两路音频录制，并通过自适应语音活动检测在各自的自然停顿处提交转写，同时具有最长句段和空闲缓冲保护。自动回答是叠加在同一录音会话上的独立开关：开启时如有需要会自动启动听写，关闭后听写仍会继续。“设置 → 音频”中可以分别启用并选择麦克风和系统输出设备，也可以将“我的语言”和“对方语言”分别设为自动检测或不同的固定语言。
+
+Transcripts are stored separately from the current input and can be edited, deleted, pinned into answer context, or copied into the current turn. Manual sending and automatic answers combine persistent background, recent/pinned transcripts, the current question, screenshots, and bounded in-memory Q/A history. A successful manual send clears only the submitted current input and screenshots; failures and input added during generation are preserved. **Clear Transcripts** affects only live transcripts, while **New Session** clears transcripts, current input, screenshots, and answer history but keeps the persistent background.
+
+转写与本轮输入分开保存，并支持编辑、删除、固定到回答上下文或加入本轮输入。手动发送和自动回答会组合固定背景、近期或固定转写、当前问题、截图及有界的内存问答历史。手动发送成功后只清除已提交的本轮输入和截图；失败或生成期间新增的输入会保留。**清空转写**只影响实时转写，**新会话**会清除转写、本轮输入、截图和回答历史，但保留固定背景。
+
+Answers stream into the response pane and are formatted only through React nodes; raw model HTML is ignored. Completed answers remain in memory for follow-up context and navigation, but are not written to disk.
+
+回答会流式进入右栏，并且只通过 React 节点安全渲染，模型返回的原始 HTML 会被忽略。已完成回答会留在内存中用于追问与回看，但不会写入磁盘。
+
+Settings, WebView2 data, and other persistent app data use a unified storage root. By default it is the `cache` folder next to the executable. The **Storage & Cleanup** settings page can select another location, restore the default, show disk usage, and schedule safe cache cleanup before the next WebView2 startup. A small `storage-location.json` bootstrap file is kept next to the executable when a custom path is used.
+
+设置、WebView2 数据及其他持久化内容统一保存在数据根目录中，默认是 EXE 同级的 `cache` 文件夹。“设置 → 存储与清理”可以选择其他位置、恢复默认目录、查看占用空间，并安排在下次创建 WebView2 前安全清理缓存。使用自定义目录时，EXE 同级会保留一个很小的 `storage-location.json` 引导文件。
 
 ### macOS
 
@@ -58,9 +82,9 @@ Build the native installer (`.exe` on Windows, `.dmg` on macOS) / 构建当前�
 pnpm desktop:build
 ```
 
-API keys are stored only in the local app configuration directory and are ignored by Git. Unsigned builds may trigger Windows SmartScreen or macOS Gatekeeper.
+API keys are stored only in `settings.json` under the selected storage root and are ignored by Git. Unsigned builds may trigger Windows SmartScreen or macOS Gatekeeper.
 
-API Key 仅保存在本机应用配置目录中，不进入 Git。未签名版本可能触发 Windows SmartScreen 或 macOS Gatekeeper 提示。
+API Key 仅保存在所选存储根目录下的 `settings.json` 中，不进入 Git。未签名版本可能触发 Windows SmartScreen 或 macOS Gatekeeper 提示。
 
 ## License
 
