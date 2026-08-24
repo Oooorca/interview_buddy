@@ -42,7 +42,10 @@ impl SystemAudioRecorder {
                 handle: Some(handle),
             }),
             Ok(Err(error)) => Err(error),
-            Err(_) => Err("系统音频启动超时；请检查屏幕与系统音频录制权限".into()),
+            Err(_) => Err(
+                "系统音频启动超时。若 macOS 的授权开关已经打开，请先关闭再重新打开 Interview Buddy 的“屏幕与系统音频录制”，然后彻底退出并重启应用。本地临时签名在重新构建后可能需要重新授权。"
+                    .into(),
+            ),
         }
     }
 

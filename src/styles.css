@@ -81,6 +81,13 @@ button { color: inherit; }
   box-shadow: 0 16px 45px rgba(0, 0, 0, .22);
   backdrop-filter: blur(24px) saturate(120%);
 }
+.platform-mac .pane {
+  /* Keep the two work panes at a constant alpha. WebKit's backdrop blur can
+     be re-sampled when a transparent macOS window changes focus or layers,
+     which intermittently turns the panes into an opaque-looking blur. */
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
 .output-pane { background: rgba(12, 13, 15, .72); }
 .pane header {
   height: 38px;

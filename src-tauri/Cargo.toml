@@ -22,7 +22,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "mul
 raw-window-handle = "0.6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tauri = { version = "2", features = ["tray-icon"] }
+tauri = { version = "2", features = ["macos-private-api", "tray-icon"] }
 tauri-plugin-global-shortcut = "2"
 xcap = "0.8"
 

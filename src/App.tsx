@@ -11,6 +11,14 @@ const AUTO_CHUNK_MS = 20_000;
 const IS_MAC = navigator.userAgent.includes("Mac");
 const MOD = IS_MAC ? "⌘⇧" : "Ctrl+Shift+";
 
+function describeMicrophoneError(error: unknown): string {
+  const detail = String(error);
+  if (IS_MAC && /NotAllowedError|PermissionDenied|permission denied|not allowed/i.test(detail)) {
+    return "麦克风：macOS 拒绝了当前构建。请在“隐私与安全性 → 麦克风”中重新开关 Interview Buddy，并彻底退出后重启应用；本地临时签名在重新构建后可能需要重新授权。";
+  }
+  return `麦克风：${detail}`;
+}
+
 function App() {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [input, setInput] = useState("");
@@ -120,7 +128,7 @@ function App() {
       recorder.ondataavailable = (event) => { if (event.data.size) session.chunks.push(event.data); };
       recorder.start(500);
       micRef.current = session;
-    } catch (error) { failures.push(`麦克风：${String(error)}`); }
+    } catch (error) { failures.push(describeMicrophoneError(error)); }
     try {
       await backend.startSystemAudio();
       systemActiveRef.current = true;
@@ -237,7 +245,7 @@ function App() {
   };
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${IS_MAC ? "platform-mac" : "platform-windows"}`}>
       <nav className="command-bar" data-tauri-drag-region onMouseDown={(event) => {
         if (event.button === 0 && !(event.target as HTMLElement).closest("button")) void getCurrentWindow().startDragging();
       }}>

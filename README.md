@@ -37,9 +37,25 @@ A private Windows and macOS interview companion for screenshots, dual-source tra
 
 ### macOS
 
-Requires macOS 13+. On first use, allow **Microphone** and **Screen & System Audio Recording** in System Settings → Privacy & Security, then restart the app. System-audio capture is an initial ScreenCaptureKit implementation and still needs hardware testing.
+Requires macOS 13+, Node.js, pnpm, Rust, and Xcode Command Line Tools. From a fresh clone, build the signed app bundle and start it with:
 
-需要 macOS 13+。首次使用时，请在“系统设置 → 隐私与安全性”中允许**麦克风**和**屏幕与系统音频录制**，然后重启应用。系统音频目前是 ScreenCaptureKit 初版实现，仍需在真机上继续完善。
+需要 macOS 13+、Node.js、pnpm、Rust 和 Xcode Command Line Tools。首次克隆后，用下面的命令构建带签名的应用并启动：
+
+```bash
+pnpm mac:start
+```
+
+On first use, click **Listen** or **Capture** to trigger the native prompts. Allow **Microphone** and **Screen & System Audio Recording** in System Settings → Privacy & Security, then fully quit and reopen Interview Buddy. The generated app is at `src-tauri/target/release/bundle/macos/Interview Buddy.app`.
+
+首次使用时，点击**听**或**截图**触发系统提示，在“系统设置 → 隐私与安全性”中允许**麦克风**和**屏幕与系统音频录制**，然后彻底退出并重新打开 Interview Buddy。生成的应用位于 `src-tauri/target/release/bundle/macos/Interview Buddy.app`。
+
+The macOS bundle includes the audio-input entitlement required by hardened-runtime builds. Local builds use an ad-hoc signature by default; a real identity can override it through `APPLE_SIGNING_IDENTITY`.
+
+macOS 安装包已加入 hardened runtime 所需的音频输入 entitlement。本地构建默认使用临时签名；如有正式证书，可通过 `APPLE_SIGNING_IDENTITY` 覆盖。
+
+> Local ad-hoc builds get a version-specific identity. If permissions stop working after rebuilding, run `pnpm mac:reset-permissions`, relaunch with `pnpm mac:start`, and grant both permissions again. Use an Apple Development or Developer ID identity to preserve permissions across builds.
+>
+> macOS 临时签名只标识当前这一版程序。重新构建后若权限失效，请运行 `pnpm mac:reset-permissions`，再用 `pnpm mac:start` 启动并重新授权。若要让权限跨构建保持有效，请使用 Apple Development 或 Developer ID 签名。
 
 ## Develop / 开发
 

@@ -8,7 +8,9 @@
     "build": "tsc && vite build",
     "tauri": "tauri",
     "desktop:dev": "tauri dev",
-    "desktop:build": "tauri build"
+    "desktop:build": "tauri build",
+    "mac:start": "sh scripts/macos-start.sh",
+    "mac:reset-permissions": "tccutil reset ScreenCapture com.oooorca.interview-buddy && tccutil reset Microphone com.oooorca.interview-buddy"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",
