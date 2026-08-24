@@ -6,6 +6,12 @@ src-tauri/gen/
 .pnpm-store/
 tools/
 settings.json
+settings.secure.json
+settings.secure.bak
+storage-location.json
+storage-location.secure.json
+storage-location.secure.bak
+vault-key-v1.dpapi
 .env
 .env.*
 !.env.example

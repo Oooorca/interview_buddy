@@ -59,9 +59,19 @@ Answers stream into the response pane and are formatted only through React nodes
 
 回答会流式进入右栏，并且只通过 React 节点安全渲染，模型返回的原始 HTML 会被忽略。已完成回答会留在内存中用于追问与回看，但不会写入磁盘。
 
-Settings, WebView data, and other persistent app data use a unified storage root. The default is the platform app-data directory, keeping signed macOS bundles and protected install locations read-only. The **Storage & Cleanup** page can move the data root, restore the default, show disk usage, and schedule safe cache cleanup. A small `storage-location.json` bootstrap file remains in the platform config directory when a custom path is used.
+Settings, WebView data, and other persistent app data use a unified storage root. The default is the platform app-data directory, keeping signed macOS bundles and protected install locations read-only. The **Storage & Cleanup** page can move the data root, restore the default, show disk usage, and schedule safe cache cleanup. A small encrypted `storage-location.secure.json` bootstrap file remains in the platform config directory when a custom path is used.
 
-设置、WebView 数据及其他持久化内容统一保存在数据根目录中。默认使用系统应用数据目录，避免修改已签名的 macOS 应用包或受保护的安装目录。“设置 → 存储与清理”可以迁移数据、恢复默认目录、查看占用并安排安全缓存清理；使用自定义目录时，系统配置目录只保留一个很小的 `storage-location.json` 引导文件。
+设置、WebView 数据及其他持久化内容统一保存在数据根目录中。默认使用系统应用数据目录，避免修改已签名的 macOS 应用包或受保护的安装目录。“设置 → 存储与清理”可以迁移数据、恢复默认目录、查看占用并安排安全缓存清理；使用自定义目录时，系统配置目录只保留一个很小的加密 `storage-location.secure.json` 引导文件。
+
+### Settings security / 设置安全
+
+The complete persisted settings document is encrypted as `settings.secure.json` with AES-256-GCM and an independently generated nonce on every save. The WebView receives only public settings and whether an API Key exists; it never receives the saved key itself. Windows protects the vault key with current-user DPAPI, while macOS stores it as a non-synchronizing Generic Password in the default login Keychain. Encrypted settings, backups, storage pointers, and vault keys are excluded from safe cache cleanup.
+
+完整持久化设置以 AES-256-GCM 加密为 `settings.secure.json`，每次保存都会重新生成 nonce。WebView 只能获取公开设置和“是否已配置 API Key”，不会取回已保存的 Key。Windows 使用当前用户 DPAPI 包装主密钥；macOS 将主密钥作为不参与 iCloud 同步的 Generic Password 存入默认登录 Keychain。安全缓存清理不会删除加密设置、备份、存储指针或主密钥。
+
+On first launch after upgrading, a valid legacy `settings.json` and `storage-location.json` are encrypted, read back, and field-verified before the plaintext files are removed. If a key is missing or an encrypted file is damaged or unsupported, Interview Buddy does not fall back to plaintext and does not overwrite the file. It opens a locked recovery page; an explicit reset quarantines files that can be located and creates a new key and default settings. Removing the old plaintext file is not claimed to physically erase SSD blocks.
+
+升级后首次启动时，有效的旧 `settings.json` 与 `storage-location.json` 会先完成加密、解密回读和逐字段验证，之后才删除明文。若密钥缺失、密文损坏或版本不受支持，应用不会退回明文，也不会覆盖原文件，而是进入锁定恢复页；只有明确确认重置后，才会隔离可定位文件并生成新密钥与默认设置。删除明文文件不等同于对 SSD 物理区块进行安全擦除。
 
 ### macOS
 
@@ -96,15 +106,19 @@ pnpm install
 pnpm desktop:dev
 ```
 
+`desktop:dev` uses `com.oooorca.interview-buddy.dev`, the product name **Interview Buddy Dev**, and an isolated `cache-dev` root and system key. It cannot read release settings or API keys. Plain `pnpm dev` is a browser-only preview and starts with non-secret defaults.
+
+`desktop:dev` 使用独立标识 `com.oooorca.interview-buddy.dev`、产品名 **Interview Buddy Dev**、`cache-dev` 数据根目录和系统密钥，不能读取正式版设置或 API Key。普通 `pnpm dev` 仅用于浏览器预览，并以不含秘密的默认设置启动。
+
 Build the native installer (`.exe` on Windows, `.dmg` on macOS) / 构建当前平台安装包：
 
 ```powershell
 pnpm desktop:build
 ```
 
-API keys are stored only in `settings.json` under the selected storage root and are ignored by Git. Unsigned builds may trigger Windows SmartScreen or macOS Gatekeeper.
+API keys are present only inside the encrypted settings vault under the selected storage root. They are never returned through the settings IPC. Unsigned builds may trigger Windows SmartScreen or macOS Gatekeeper.
 
-API Key 仅保存在所选存储根目录下的 `settings.json` 中，不进入 Git。未签名版本可能触发 Windows SmartScreen 或 macOS Gatekeeper 提示。
+API Key 只存在于所选存储根目录的加密设置保险库中，设置 IPC 不会将其回传。未签名版本可能触发 Windows SmartScreen 或 macOS Gatekeeper 提示。
 
 ## License
 
