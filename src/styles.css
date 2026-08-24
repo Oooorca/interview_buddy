@@ -398,6 +398,22 @@ button { color: inherit; }
 }
 .settings-panel select:disabled { opacity: .38; }
 .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.prompt-issue { padding: 8px 9px; border: 1px solid rgba(255,108,121,.22); border-radius: 8px; background: rgba(255,108,121,.07); color: #ff9ca5; font-size: 9px; line-height: 1.5; }
+.prompt-card { display: grid; gap: 8px; padding: 10px; border: 1px solid rgba(255,255,255,.085); border-radius: 10px; background: rgba(255,255,255,.022); }
+.prompt-card.default { border-color: rgba(126,151,255,.16); background: rgba(83,103,190,.045); }
+.prompt-card.disabled { border-color: rgba(232,191,101,.17); background: rgba(232,191,101,.025); }
+.prompt-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.prompt-card-heading > div { min-width: 0; display: grid; gap: 3px; }
+.prompt-card-heading b { color: rgba(255,255,255,.82); font-size: 11px; }
+.prompt-card-heading span { color: rgba(255,255,255,.34); font-size: 9px; line-height: 1.4; }
+.settings-panel .prompt-card-heading select { width: 104px; flex: 0 0 104px; padding: 6px 8px; color: rgba(238,241,251,.82); font-size: 9px; }
+.settings-panel .prompt-card textarea { min-height: 92px; resize: vertical; font: 10px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.settings-panel .prompt-card textarea[readonly] { border-color: rgba(126,151,255,.10); background: rgba(15,17,24,.50); color: rgba(230,234,246,.56); cursor: default; }
+.prompt-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.prompt-card-footer span { color: rgba(255,255,255,.30); font-size: 8px; line-height: 1.35; }
+.prompt-card-footer button { height: 25px; padding: 0 9px; border: 1px solid rgba(126,151,255,.20); border-radius: 6px; background: rgba(92,113,208,.10); color: rgba(216,224,255,.66); font-size: 8px; cursor: pointer; }
+.prompt-card-footer button:hover { border-color: rgba(146,168,255,.38); background: rgba(92,113,208,.20); color: #fff; }
+.prompt-disabled-warning { padding: 10px; border: 1px solid rgba(232,191,101,.16); border-radius: 8px; background: rgba(232,191,101,.055); color: rgba(248,215,143,.72); font-size: 9px; line-height: 1.55; }
 .toggle-setting { display: flex !important; grid-template-columns: none !important; align-items: center; gap: 6px !important; color: rgba(255,255,255,.68) !important; white-space: nowrap; }
 .toggle-setting input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .toggle-setting i { position: relative; width: 26px; height: 15px; border-radius: 10px; background: rgba(255,255,255,.10); transition: background .15s ease; }

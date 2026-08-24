@@ -27,6 +27,55 @@ mod system_audio;
 #[path = "system_audio_unsupported.rs"]
 mod system_audio;
 
+const DEFAULT_SYSTEM_PROMPT: &str = r#"你是面试实时 Copilot。请结合固定背景、近期对话、本轮输入、截图和历史回答，以面试者的第一人称生成可直接说出口的中文回答。
+
+要求：
+
+- 先直接回答核心问题，再补充最必要的依据、例子或权衡。
+- 表达自然、简洁、自信，避免模板化开场、重复题目和冗长铺垫。
+- 技术问题优先说明结论、核心原理、实际应用和关键取舍。
+- 经历类问题基于已有背景组织为“场景—行动—结果”，不要编造不存在的经历或数据。
+- 信息不足时做最小且明确的假设；如果缺失信息会显著影响答案，给出一句简短的澄清问题。
+- 严格遵循本轮输入中的具体格式要求；需要代码、步骤或表格时可以使用结构化输出。
+- 默认保持精炼，只有问题本身复杂或对方明确要求深入时才展开。"#;
+
+const DEFAULT_CODING_PROMPT: &str = r#"你是算法面试实时助手。请根据截图还原题目、输入输出、约束和函数签名，并使用 Python 解决。
+
+按以下顺序回答：
+
+1. 题意确认：用一句话概括问题；如果截图信息不完整，明确最小必要假设，不要编造条件。
+2. 面试口述：用简洁、自然、可直接说给面试官听的方式说明核心思路、关键数据结构和正确性依据。
+3. Python 代码：遵循截图中的函数签名，给出可直接提交的完整实现。代码保持清晰简洁，只在关键逻辑处添加注释。
+4. 复杂度：明确时间复杂度和空间复杂度。
+5. 边界情况：列出最重要的边界条件，并给出一个简短示例或执行过程用于检查代码。
+
+默认直接提供最优且易于解释的方案。只有当朴素方案有助于推导最优解时，才用一至两句话说明朴素思路及其性能瓶颈，不要为非最优方案重复编写完整代码。
+
+避免冗长背景、重复解释和与解题无关的内容。如果存在多种同等复杂度的方案，优先选择面试中最容易讲清楚、最不容易写错的一种。"#;
+
+const KNOWN_SYSTEM_DEFAULTS: &[&str] = &[
+    DEFAULT_SYSTEM_PROMPT,
+    "你是会议实时 Copilot。根据上下文先理解对方意图，再给出自然、简短、可以直接说出口的中文回答；必要时补充要点和一个合适的反问。不要编造事实。",
+    "你是会议实时 Copilot。根据上下文给出自然、简短、可直接说出口的中文回答；必要时补充要点和反问。不要编造事实。",
+    "你是会议实时 Copilot。根据上下文给出自然、简短、可直接说出口的中文回答；必要时补充要点和反问。",
+];
+
+const KNOWN_CODING_DEFAULTS: &[&str] = &[
+    DEFAULT_CODING_PROMPT,
+    "你是算法面试助手。识别截图中的完整题目，给出：1. 核心思路；2. 时间与空间复杂度；3. 可直接提交的代码；4. 容易出错的边界情况。默认使用 TypeScript；如果截图指定语言则遵从截图。回答紧凑、正确、适合手撕讲解。",
+    "你是算法面试助手。识别截图题目，给出核心思路、复杂度、可提交代码和边界情况。",
+    "你是算法面试助手。识别截图题目，给出python语言的核心思路、复杂度、可提交代码和边界情况。对于复杂的题目，先给出一个最直观但复杂度较高的解法及代码，再逐步优化到最优解，展现思维过程。",
+];
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum PromptMode {
+    #[default]
+    Default,
+    Custom,
+    Disabled,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 struct AppSettings {
@@ -45,8 +94,10 @@ struct AppSettings {
     fixed_context: String,
     // Kept for one-way migration from settings written by version 0.2.0.
     transcription_language: String,
-    system_prompt: String,
-    coding_prompt: String,
+    system_prompt_mode: PromptMode,
+    coding_prompt_mode: PromptMode,
+    system_prompt: Option<String>,
+    coding_prompt: Option<String>,
 }
 
 impl Default for AppSettings {
@@ -66,33 +117,90 @@ impl Default for AppSettings {
             auto_safe_cleanup: false,
             fixed_context: String::new(),
             transcription_language: "auto".into(),
-            system_prompt: r#"你是面试实时 Copilot。请结合固定背景、近期对话、本轮输入、截图和历史回答，以面试者的第一人称生成可直接说出口的中文回答。
-
-要求：
-
-- 先直接回答核心问题，再补充最必要的依据、例子或权衡。
-- 表达自然、简洁、自信，避免模板化开场、重复题目和冗长铺垫。
-- 技术问题优先说明结论、核心原理、实际应用和关键取舍。
-- 经历类问题基于已有背景组织为“场景—行动—结果”，不要编造不存在的经历或数据。
-- 信息不足时做最小且明确的假设；如果缺失信息会显著影响答案，给出一句简短的澄清问题。
-- 严格遵循本轮输入中的具体格式要求；需要代码、步骤或表格时可以使用结构化输出。
-- 默认保持精炼，只有问题本身复杂或对方明确要求深入时才展开。"#
-                .into(),
-            coding_prompt: r#"你是算法面试实时助手。请根据截图还原题目、输入输出、约束和函数签名，并使用 Python 解决。
-
-按以下顺序回答：
-
-1. 题意确认：用一句话概括问题；如果截图信息不完整，明确最小必要假设，不要编造条件。
-2. 面试口述：用简洁、自然、可直接说给面试官听的方式说明核心思路、关键数据结构和正确性依据。
-3. Python 代码：遵循截图中的函数签名，给出可直接提交的完整实现。代码保持清晰简洁，只在关键逻辑处添加注释。
-4. 复杂度：明确时间复杂度和空间复杂度。
-5. 边界情况：列出最重要的边界条件，并给出一个简短示例或执行过程用于检查代码。
-
-默认直接提供最优且易于解释的方案。只有当朴素方案有助于推导最优解时，才用一至两句话说明朴素思路及其性能瓶颈，不要为非最优方案重复编写完整代码。
-
-避免冗长背景、重复解释和与解题无关的内容。如果存在多种同等复杂度的方案，优先选择面试中最容易讲清楚、最不容易写错的一种。"#
-                .into(),
+            system_prompt_mode: PromptMode::Default,
+            coding_prompt_mode: PromptMode::Default,
+            system_prompt: None,
+            coding_prompt: None,
         }
+    }
+}
+
+fn legacy_prompt_mode(prompt: Option<&str>, known_defaults: &[&str]) -> PromptMode {
+    let value = prompt.unwrap_or_default().trim();
+    if value.is_empty() || known_defaults.iter().any(|default| default.trim() == value) {
+        PromptMode::Default
+    } else {
+        PromptMode::Custom
+    }
+}
+
+fn normalize_prompt_field(
+    mode: &mut PromptMode,
+    prompt: &mut Option<String>,
+    label: &str,
+    reject_empty_custom: bool,
+) -> Result<bool, String> {
+    match mode {
+        PromptMode::Default | PromptMode::Disabled => Ok(prompt.take().is_some()),
+        PromptMode::Custom => {
+            if prompt
+                .as_deref()
+                .is_some_and(|value| !value.trim().is_empty())
+            {
+                Ok(false)
+            } else if reject_empty_custom {
+                Err(format!("{label}处于自定义模式，但内容为空"))
+            } else {
+                *mode = PromptMode::Default;
+                *prompt = None;
+                Ok(true)
+            }
+        }
+    }
+}
+
+fn normalize_prompt_settings(
+    settings: &mut AppSettings,
+    reject_empty_custom: bool,
+) -> Result<bool, String> {
+    let system_changed = normalize_prompt_field(
+        &mut settings.system_prompt_mode,
+        &mut settings.system_prompt,
+        "系统 Prompt",
+        reject_empty_custom,
+    )?;
+    let coding_changed = normalize_prompt_field(
+        &mut settings.coding_prompt_mode,
+        &mut settings.coding_prompt,
+        "纯截图 Prompt",
+        reject_empty_custom,
+    )?;
+    Ok(system_changed || coding_changed)
+}
+
+fn migrate_legacy_prompt_settings(source: &str, settings: &mut AppSettings) -> bool {
+    let mut changed = false;
+    if !source.contains("\"systemPromptMode\"") {
+        settings.system_prompt_mode =
+            legacy_prompt_mode(settings.system_prompt.as_deref(), KNOWN_SYSTEM_DEFAULTS);
+        changed = true;
+    }
+    if !source.contains("\"codingPromptMode\"") {
+        settings.coding_prompt_mode =
+            legacy_prompt_mode(settings.coding_prompt.as_deref(), KNOWN_CODING_DEFAULTS);
+        changed = true;
+    }
+    changed
+}
+
+fn resolved_system_prompt(settings: &AppSettings) -> Option<&str> {
+    match settings.system_prompt_mode {
+        PromptMode::Default => Some(DEFAULT_SYSTEM_PROMPT),
+        PromptMode::Custom => settings
+            .system_prompt
+            .as_deref()
+            .filter(|prompt| !prompt.trim().is_empty()),
+        PromptMode::Disabled => None,
     }
 }
 
@@ -192,7 +300,8 @@ fn load_settings(state: State<'_, AppState>) -> Result<AppSettings, String> {
 }
 
 #[tauri::command]
-fn save_settings(settings: AppSettings, state: State<'_, AppState>) -> Result<(), String> {
+fn save_settings(mut settings: AppSettings, state: State<'_, AppState>) -> Result<(), String> {
+    normalize_prompt_settings(&mut settings, true)?;
     let settings_path = state.storage.settings_path()?;
     if let Some(parent) = settings_path.parent() {
         fs::create_dir_all(parent).map_err(|error| error.to_string())?;
@@ -518,7 +627,10 @@ async fn ask_llm(
         );
         (settings.vision_model.clone(), json!(content))
     };
-    let mut messages = vec![json!({"role": "system", "content": settings.system_prompt})];
+    let mut messages = Vec::new();
+    if let Some(system_prompt) = resolved_system_prompt(&settings) {
+        messages.push(json!({"role": "system", "content": system_prompt}));
+    }
     messages.extend(bounded_history(&request.history));
     messages.push(json!({"role": "user", "content": user_content}));
     let body = json!({
@@ -1137,11 +1249,20 @@ pub fn run() {
             let needs_storage_schema = source_content
                 .as_deref()
                 .is_some_and(|content| !content.contains("\"autoSafeCleanup\""));
+            let needs_prompt_schema = source_content.as_deref().is_some_and(|content| {
+                !content.contains("\"systemPromptMode\"")
+                    || !content.contains("\"codingPromptMode\"")
+            });
             let mut settings: AppSettings = source_content
                 .as_deref()
                 .and_then(|content| serde_json::from_str(content).ok())
                 .unwrap_or_default();
-            let mut persist_settings = source_path != &settings_path || needs_storage_schema;
+            let mut persist_settings =
+                source_path != &settings_path || needs_storage_schema || needs_prompt_schema;
+            if let Some(content) = source_content.as_deref() {
+                persist_settings |= migrate_legacy_prompt_settings(content, &mut settings);
+            }
+            persist_settings |= normalize_prompt_settings(&mut settings, false).unwrap_or_default();
             if settings.transcription_language != "auto"
                 && settings.my_transcription_language == "auto"
                 && settings.their_transcription_language == "auto"
@@ -1312,6 +1433,52 @@ mod tests {
         assert_eq!(bounded.len(), 2);
         assert_eq!(bounded[0]["role"], "user");
         assert_eq!(bounded[1]["role"], "assistant");
+    }
+
+    #[test]
+    fn legacy_prompts_migrate_empty_and_known_defaults_to_default_mode() {
+        assert_eq!(
+            legacy_prompt_mode(Some(""), KNOWN_SYSTEM_DEFAULTS),
+            PromptMode::Default
+        );
+        assert_eq!(
+            legacy_prompt_mode(Some(DEFAULT_SYSTEM_PROMPT), KNOWN_SYSTEM_DEFAULTS),
+            PromptMode::Default
+        );
+        assert_eq!(
+            legacy_prompt_mode(Some("我的专用回答规则"), KNOWN_SYSTEM_DEFAULTS),
+            PromptMode::Custom
+        );
+    }
+
+    #[test]
+    fn prompt_modes_resolve_and_normalize_safely() {
+        let mut settings = AppSettings::default();
+        assert_eq!(
+            resolved_system_prompt(&settings),
+            Some(DEFAULT_SYSTEM_PROMPT)
+        );
+
+        settings.system_prompt_mode = PromptMode::Disabled;
+        settings.system_prompt = Some("ignored".into());
+        assert!(normalize_prompt_settings(&mut settings, true).expect("normalize"));
+        assert_eq!(settings.system_prompt, None);
+        assert_eq!(resolved_system_prompt(&settings), None);
+
+        settings.system_prompt_mode = PromptMode::Custom;
+        assert!(normalize_prompt_settings(&mut settings, true).is_err());
+        settings.system_prompt = Some("custom".into());
+        assert!(!normalize_prompt_settings(&mut settings, true).expect("custom"));
+        assert_eq!(resolved_system_prompt(&settings), Some("custom"));
+    }
+
+    #[test]
+    fn default_prompt_settings_serialize_without_copying_builtin_text() {
+        let value = serde_json::to_value(AppSettings::default()).expect("serialize settings");
+        assert_eq!(value["systemPromptMode"], "default");
+        assert_eq!(value["codingPromptMode"], "default");
+        assert!(value["systemPrompt"].is_null());
+        assert!(value["codingPrompt"].is_null());
     }
 
     #[test]

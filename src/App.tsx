@@ -5,6 +5,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { AnswerView } from "./AnswerView";
 import { backend } from "./tauri";
 import {
+  DEFAULT_CODING_PROMPT,
+  DEFAULT_SYSTEM_PROMPT,
   defaultSettings,
   type AnswerDelta,
   type AnswerHistoryEntry,
@@ -12,6 +14,7 @@ import {
   type AudioOutputDevice,
   type CaptureResult,
   type ConversationMessage,
+  type PromptMode,
   type StorageInfo,
 } from "./types";
 
@@ -47,6 +50,16 @@ type VadState = {
   noiseFloor: number;
   lastAt: number;
 };
+type PromptEditorProps = {
+  title: string;
+  description: string;
+  mode: PromptMode;
+  value: string | null;
+  defaultValue: string;
+  rows: number;
+  onModeChange: (mode: PromptMode) => void;
+  onValueChange: (value: string) => void;
+};
 const VAD_POLL_MS = 100;
 const VAD_ENERGY_FLOOR = 0.0025;
 const VAD_SILENCE_MS = 800;
@@ -65,6 +78,56 @@ const LANGUAGE_OPTIONS = [
   ["auto", "自动检测"], ["zh", "中文"], ["en", "English"], ["ja", "日本語"],
   ["ko", "한국어"], ["de", "Deutsch"], ["fr", "Français"], ["es", "Español"],
 ] as const;
+
+function PromptEditor({
+  title,
+  description,
+  mode,
+  value,
+  defaultValue,
+  rows,
+  onModeChange,
+  onValueChange,
+}: PromptEditorProps) {
+  const visibleValue = mode === "default" ? defaultValue : value || "";
+  return <section className={`prompt-card ${mode}`}>
+    <header className="prompt-card-heading">
+      <div><b>{title}</b><span>{description}</span></div>
+      <select aria-label={`${title}模式`} value={mode}
+        onChange={(event) => onModeChange(event.target.value as PromptMode)}>
+        <option value="default">推荐默认</option>
+        <option value="custom">自定义</option>
+        <option value="disabled">禁用</option>
+      </select>
+    </header>
+    {mode === "disabled" ? <div className="prompt-disabled-warning">
+      已明确禁用。请求将不携带此 Prompt，回答质量和格式稳定性可能下降。
+    </div> : <>
+      <textarea rows={rows} value={visibleValue} readOnly={mode === "default"}
+        onChange={(event) => onValueChange(event.target.value)} />
+      <footer className="prompt-card-footer">
+        <span>{mode === "default" ? "随应用升级自动使用最新内置版本" : `${visibleValue.length} 个字符`}</span>
+        {mode === "default"
+          ? <button onClick={() => onModeChange("custom")}>复制为自定义</button>
+          : <button onClick={() => onModeChange("default")}>恢复推荐默认</button>}
+      </footer>
+    </>}
+  </section>;
+}
+
+function resolvedCodingPrompt(settings: AppSettings): string {
+  if (settings.codingPromptMode === "default") return DEFAULT_CODING_PROMPT;
+  if (settings.codingPromptMode === "custom") return settings.codingPrompt || "";
+  return "";
+}
+
+function normalizedSettingsForSave(settings: AppSettings): AppSettings {
+  return {
+    ...settings,
+    systemPrompt: settings.systemPromptMode === "custom" ? settings.systemPrompt : null,
+    codingPrompt: settings.codingPromptMode === "custom" ? settings.codingPrompt : null,
+  };
+}
 
 function freshVadState(): VadState {
   return {
@@ -162,6 +225,7 @@ function App() {
   const [transcripts, setTranscripts] = useState<TranscriptEntry[]>([]);
   const [backgroundOpen, setBackgroundOpen] = useState(false);
   const [shortcutIssue, setShortcutIssue] = useState("");
+  const [promptIssue, setPromptIssue] = useState("");
 
   const micRef = useRef<MicSession | null>(null);
   const systemActiveRef = useRef(false);
@@ -325,7 +389,7 @@ function App() {
 
   async function applyStorageRoot(path: string) {
     setStorageLoading(true);
-    await backend.saveSettings(settingsRef.current);
+    await backend.saveSettings(normalizedSettingsForSave(settingsRef.current));
     const info = await backend.setStorageRoot(path);
     setStorageInfo(info);
     setNotice(info.restartRequired ? "存储目录已修改，重启后生效" : "存储目录未改变");
@@ -582,7 +646,7 @@ function App() {
       setOutput("请先在设置中填写 API Key。");
       return;
     }
-    const currentText = text || settingsRef.current.codingPrompt;
+    const currentText = text || resolvedCodingPrompt(settingsRef.current);
     const prompt = composePrompt(currentText, "manual");
     const answer = await generateAnswer(prompt, images, "manual", currentText);
     if (!answer) return;
@@ -963,7 +1027,7 @@ function App() {
 
   async function saveFixedContext() {
     try {
-      await backend.saveSettings(settingsRef.current);
+      await backend.saveSettings(normalizedSettingsForSave(settingsRef.current));
       setNotice("固定背景已保存");
     } catch (error) {
       setNotice(`固定背景保存失败：${String(error)}`);
@@ -978,13 +1042,68 @@ function App() {
     });
   }
 
+  function updatePromptMode(kind: "system" | "coding", mode: PromptMode) {
+    setPromptIssue("");
+    setSettings((current) => {
+      const next = kind === "system"
+        ? {
+            ...current,
+            systemPromptMode: mode,
+            systemPrompt: mode === "custom"
+              ? current.systemPrompt || DEFAULT_SYSTEM_PROMPT
+              : mode === "default" ? null : current.systemPrompt,
+          }
+        : {
+            ...current,
+            codingPromptMode: mode,
+            codingPrompt: mode === "custom"
+              ? current.codingPrompt || DEFAULT_CODING_PROMPT
+              : mode === "default" ? null : current.codingPrompt,
+          };
+      settingsRef.current = next;
+      return next;
+    });
+  }
+
+  function updatePromptValue(kind: "system" | "coding", value: string) {
+    setPromptIssue("");
+    setSettings((current) => {
+      const next = kind === "system"
+        ? { ...current, systemPrompt: value }
+        : { ...current, codingPrompt: value };
+      settingsRef.current = next;
+      return next;
+    });
+  }
+
   function showError(label: string, error: unknown) {
     setOutput(`${label}：${String(error)}`); setStatus("error"); setNotice(label);
   }
 
   async function saveSettings() {
-    try { await backend.saveSettings(settings); setSettingsOpen(false); setNotice("设置已保存"); }
-    catch (error) { showError("保存设置失败", error); }
+    const emptyCustom = settings.systemPromptMode === "custom" && !settings.systemPrompt?.trim()
+      ? "系统 Prompt"
+      : settings.codingPromptMode === "custom" && !settings.codingPrompt?.trim()
+        ? "纯截图 Prompt"
+        : "";
+    if (emptyCustom) {
+      setSettingsPage("api");
+      setPromptIssue(`${emptyCustom}处于自定义模式，但内容为空。请选择推荐默认或明确禁用。`);
+      setNotice("Prompt 设置尚未完成");
+      return;
+    }
+    try {
+      const normalized = normalizedSettingsForSave(settings);
+      await backend.saveSettings(normalized);
+      settingsRef.current = normalized;
+      setSettings(normalized);
+      setPromptIssue("");
+      setSettingsOpen(false);
+      setNotice("设置已保存");
+    } catch (error) {
+      setPromptIssue(String(error));
+      showError("保存设置失败", error);
+    }
   }
 
   dispatchRef.current = (action) => {
@@ -1045,8 +1164,17 @@ function App() {
                 <label>视觉模型<input value={settings.visionModel} onChange={(e) => setSettings({ ...settings, visionModel: e.target.value })} /></label>
               </div>
               <label>转写模型<input value={settings.transcriptionModel} onChange={(e) => setSettings({ ...settings, transcriptionModel: e.target.value })} /></label>
-              <label>系统 Prompt<textarea rows={3} value={settings.systemPrompt} onChange={(e) => setSettings({ ...settings, systemPrompt: e.target.value })} /></label>
-              <label>纯截图 Prompt<textarea rows={4} value={settings.codingPrompt} onChange={(e) => setSettings({ ...settings, codingPrompt: e.target.value })} /></label>
+              {promptIssue && <div className="prompt-issue">{promptIssue}</div>}
+              <PromptEditor title="系统 Prompt" description="控制所有回答的身份、语气与事实边界"
+                mode={settings.systemPromptMode} value={settings.systemPrompt}
+                defaultValue={DEFAULT_SYSTEM_PROMPT} rows={7}
+                onModeChange={(mode) => updatePromptMode("system", mode)}
+                onValueChange={(value) => updatePromptValue("system", value)} />
+              <PromptEditor title="纯截图 Prompt" description="仅截图、没有本轮文字时使用的解题要求"
+                mode={settings.codingPromptMode} value={settings.codingPrompt}
+                defaultValue={DEFAULT_CODING_PROMPT} rows={9}
+                onModeChange={(mode) => updatePromptMode("coding", mode)}
+                onValueChange={(value) => updatePromptValue("coding", value)} />
             </div> : settingsPage === "audio" ? <div className="settings-page audio-page">
               <div className="audio-page-heading">
                 <div><strong>音频输入与输出</strong><span>设备修改将在下次开始听写时生效</span></div>

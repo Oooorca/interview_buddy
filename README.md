@@ -39,6 +39,10 @@ A private Windows and macOS interview companion for screenshots, dual-source tra
 
 `Mod` is `Ctrl` on Windows and `⌘` on macOS. / `Mod` 在 Windows 上是 `Ctrl`，在 macOS 上是 `⌘`。
 
+Each Prompt setting has three explicit modes: **Recommended Default** follows the latest built-in Prompt after upgrades, **Custom** stores a non-empty user override, and **Disabled** sends no corresponding Prompt. Legacy empty values and known historical defaults migrate to Recommended Default; other existing text is preserved as Custom.
+
+每项 Prompt 设置都有三种明确模式：**推荐默认**会在升级后使用最新内置 Prompt，**自定义**保存非空的用户覆盖内容，**禁用**则不发送对应 Prompt。旧版空值和已知历史默认值会迁移为“推荐默认”，其他已有内容会保留为“自定义”。
+
 Global shortcuts register independently. If another application already owns one or more combinations, Interview Buddy still starts and reports the unavailable shortcuts; the corresponding on-screen buttons remain usable.
 
 全局快捷键会逐项独立注册。如果一个或多个组合键已被其他程序占用，Interview Buddy 仍会正常启动并提示不可用项；对应的界面按钮仍可点击使用。
