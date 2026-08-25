@@ -207,6 +207,7 @@ impl StorageManager {
         })
     }
 
+    #[cfg(target_os = "windows")]
     pub fn active_webview_path(&self) -> PathBuf {
         self.active_root.join(WEBVIEW_DIR)
     }

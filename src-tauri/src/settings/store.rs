@@ -198,6 +198,7 @@ fn remove_plaintext_candidates(candidates: &[std::path::PathBuf]) -> Result<bool
     Ok(removed)
 }
 
+#[cfg(target_os = "windows")]
 pub fn atomic_write_new(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let parent = path
         .parent()

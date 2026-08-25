@@ -199,6 +199,7 @@ pub fn run() {
             if let Err(error) = storage.run_startup_cleanup(settings.auto_safe_cleanup) {
                 eprintln!("Interview Buddy safe cleanup deferred after error: {error}");
             }
+            #[cfg(target_os = "windows")]
             let webview_data_path = storage.active_webview_path();
             app.manage(AppState {
                 settings: RwLock::new(settings),
