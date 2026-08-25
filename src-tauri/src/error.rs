@@ -93,6 +93,10 @@ fn classify(message: &str) -> (&'static str, Option<String>) {
         "区域截图选择器已经关闭" | "区域截图会话已经结束" => Some("capture.sessionEnded"),
         "截图区域太小" | "截图区域无效或尺寸过小" => Some("capture.tooSmall"),
         "截图区域超出当前显示器或尺寸过小" => Some("capture.outOfBounds"),
+        "显示器缩放比例无效" => Some("capture.invalidScale"),
+        "macOS 尚未向当前版本的 Interview Buddy 授予屏幕录制权限。系统授权窗口已打开；授权后请彻底退出并重新启动应用。临时签名构建每次更新后都需要重新授权。" => {
+            Some("capture.macosPermission")
+        }
         "读取鼠标位置失败" => Some("capture.cursorFailed"),
         "没有找到主窗口" => Some("capture.mainWindowMissing"),
         "当前窗口不是 Win32 窗口" => Some("window.unsupported"),

@@ -30,7 +30,9 @@ xcap = "0.8"
 zeroize = { version = "1.9", features = ["derive"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+objc2-core-graphics = { version = "0.3", features = ["CGWindow"] }
 screencapturekit = { version = "8", features = ["macos_13_0"] }
+security-framework = "3.7"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 raw-window-handle = "0.6"
@@ -46,9 +48,6 @@ windows = { version = "0.61", features = [
     "Win32_UI_Shell_PropertiesSystem",
     "Win32_UI_WindowsAndMessaging",
 ] }
-
-[target.'cfg(target_os = "macos")'.dependencies.security-framework]
-version = "3.7"
 
 [profile.release]
 codegen-units = 1

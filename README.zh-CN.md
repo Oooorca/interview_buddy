@@ -86,9 +86,9 @@ pnpm mac:start
 
 首次使用时，点击**听写**或**截图**触发系统提示，在“系统设置 → 隐私与安全性”中允许**麦克风**和**屏幕与系统音频录制**，然后彻底退出并重新打开 Interview Buddy。生成的应用位于 `src-tauri/target/release/bundle/macos/Interview Buddy.app`。
 
-macOS 安装包已加入 hardened runtime 所需的音频输入 entitlement。本地构建默认使用临时签名；如有正式证书，可通过 `APPLE_SIGNING_IDENTITY` 覆盖。
+macOS 安装包已加入 hardened runtime 所需的音频输入 entitlement。`pnpm mac:start` 会优先自动使用已安装的 Apple Development 或 Developer ID Application 签名，也可通过 `APPLE_SIGNING_IDENTITY` 明确选择；没有可用证书时才回退到临时签名。
 
-> macOS 临时签名只标识当前这一版程序。重新构建后若权限失效，请运行 `pnpm mac:reset-permissions`，再用 `pnpm mac:start` 启动并重新授权。若要让权限跨构建保持有效，请使用 Apple Development 或 Developer ID 签名。
+> macOS 临时签名只标识当前这一版程序。签名身份变化时，`pnpm mac:start` 会仅清理 Interview Buddy 已失效的麦克风和屏幕录制授权，让系统能够重新弹出授权提示；重新授权后请重启应用。若要让权限跨构建保持有效，请使用 Apple Development 或 Developer ID 签名。仍可用 `pnpm mac:reset-permissions` 手动恢复异常授权状态。
 
 ## 开发
 

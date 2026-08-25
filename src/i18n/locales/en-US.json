@@ -340,7 +340,9 @@
       "mainWindowMissing": "The main window could not be found",
       "createFailed": "Could not create the region selector",
       "showFailed": "Could not show the region selector",
-      "failed": "Region capture failed"
+      "failed": "Region capture failed",
+      "invalidScale": "The display scale factor is invalid",
+      "macosPermission": "macOS has not granted screen-recording access to this build of Interview Buddy. The system authorization dialog has been opened; after granting access, fully quit and relaunch the app. Ad-hoc builds require authorization again after each update."
     },
     "llm": {
       "streamLineTooLarge": "The streaming response exceeds the safety limit",

@@ -9,6 +9,12 @@ use crate::{audio, settings, storage};
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct RegionCaptureSession {
     pub(crate) restore_main_window: bool,
+    #[cfg(target_os = "macos")]
+    pub(crate) monitor_x: i32,
+    #[cfg(target_os = "macos")]
+    pub(crate) monitor_y: i32,
+    #[cfg(target_os = "macos")]
+    pub(crate) monitor_scale: f64,
 }
 
 pub(crate) struct AppState {

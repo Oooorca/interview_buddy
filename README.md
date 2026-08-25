@@ -87,9 +87,9 @@ pnpm mac:start
 
 On first use, click **Listen** or **Capture** to trigger the native prompts. Allow **Microphone** and **Screen & System Audio Recording** in System Settings → Privacy & Security, then fully quit and reopen Interview Buddy. The generated app is at `src-tauri/target/release/bundle/macos/Interview Buddy.app`.
 
-The macOS bundle includes the audio-input entitlement required by hardened-runtime builds. Local builds use an ad-hoc signature by default; a real identity can override it through `APPLE_SIGNING_IDENTITY`.
+The macOS bundle includes the audio-input entitlement required by hardened-runtime builds. `pnpm mac:start` automatically uses an installed Apple Development or Developer ID Application identity when available; `APPLE_SIGNING_IDENTITY` can select one explicitly. If no identity is available, it falls back to an ad-hoc signature.
 
-> Local ad-hoc builds get a version-specific identity. If permissions stop working after rebuilding, run `pnpm mac:reset-permissions`, relaunch with `pnpm mac:start`, and grant both permissions again. Use an Apple Development or Developer ID identity to preserve permissions across builds.
+> Local ad-hoc builds get a version-specific identity. When that identity changes, `pnpm mac:start` clears only the stale Interview Buddy microphone and screen-capture approvals so macOS can show fresh prompts. Grant both permissions again and relaunch the app. Use an Apple Development or Developer ID identity to preserve permissions across builds. `pnpm mac:reset-permissions` remains available for manual recovery.
 
 ## Develop
 

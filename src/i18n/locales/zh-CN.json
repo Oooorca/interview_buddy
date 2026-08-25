@@ -340,7 +340,9 @@
       "mainWindowMissing": "没有找到主窗口",
       "createFailed": "无法创建区域截图选择器",
       "showFailed": "无法显示区域截图选择器",
-      "failed": "区域截图失败"
+      "failed": "区域截图失败",
+      "invalidScale": "显示器缩放比例无效",
+      "macosPermission": "macOS 尚未向当前版本的 Interview Buddy 授予屏幕录制权限。系统授权窗口已打开；授权后请彻底退出并重新启动应用。临时签名构建每次更新后都需要重新授权。"
     },
     "llm": {
       "streamLineTooLarge": "流式回答超过安全上限",
