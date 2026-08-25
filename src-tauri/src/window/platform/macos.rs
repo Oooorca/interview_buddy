@@ -1,7 +1,4 @@
-use crate::{
-    error::{AppError, AppResult},
-    storage::StorageManager,
-};
+use crate::{error::AppResult, storage::StorageManager};
 
 use std::{sync::mpsc, time::Duration};
 
@@ -44,7 +41,7 @@ fn configure_native_overlay(window: &tauri::WebviewWindow) -> Result<(), String>
         .map_err(|error| format!("读取 macOS 原生窗口失败：{error}"))?
         .cast::<NSWindow>();
     let ns_window =
-        unsafe { pointer.as_ref() }.ok_or_else(|| AppError::from("macOS 原生窗口指针为空"))?;
+        unsafe { pointer.as_ref() }.ok_or_else(|| "macOS 原生窗口指针为空".to_string())?;
     let behavior = overlay_behavior(ns_window.collectionBehavior());
     ns_window.setCollectionBehavior(behavior);
     Ok(())
