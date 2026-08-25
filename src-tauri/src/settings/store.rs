@@ -198,27 +198,6 @@ fn remove_plaintext_candidates(candidates: &[std::path::PathBuf]) -> Result<bool
     Ok(removed)
 }
 
-#[cfg(target_os = "windows")]
-pub fn atomic_write_new(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    let parent = path
-        .parent()
-        .ok_or_else(|| "无法确定安全文件目录".to_string())?;
-    fs::create_dir_all(parent).map_err(|error| format!("无法创建安全文件目录：{error}"))?;
-    let mut temporary = tempfile::NamedTempFile::new_in(parent)
-        .map_err(|error| format!("无法创建安全临时文件：{error}"))?;
-    temporary
-        .write_all(bytes)
-        .map_err(|error| format!("无法写入安全临时文件：{error}"))?;
-    temporary
-        .as_file_mut()
-        .sync_all()
-        .map_err(|error| format!("无法同步安全临时文件：{error}"))?;
-    temporary
-        .persist_noclobber(path)
-        .map_err(|error| format!("无法保存安全文件：{}", error.error))?;
-    Ok(())
-}
-
 pub fn atomic_replace(path: &Path, backup: &Path, bytes: &[u8]) -> Result<(), String> {
     let parent = path
         .parent()

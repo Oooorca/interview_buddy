@@ -113,3 +113,20 @@ fn preview(body: &str) -> String {
     }
     output.replace(['\r', '\n'], " ")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn openai_compatible_sse_delta_is_extracted() {
+        let delta =
+            parse_sse_delta(r#"{"choices":[{"delta":{"content":"你好"},"finish_reason":null}]}"#)
+                .expect("valid chunk");
+        assert_eq!(delta.as_deref(), Some("你好"));
+        assert_eq!(
+            parse_sse_delta(r#"{"choices":[{"delta":{}}]}"#).unwrap(),
+            None
+        );
+    }
+}

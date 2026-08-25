@@ -25,7 +25,6 @@ type ListeningAnswerPort = {
 };
 
 type UseListeningControllerOptions = {
-  isMac: boolean;
   settingsRef: MutableRefObject<AppSettings>;
   apiKeyConfigured: boolean;
   securityIssue: SecurityIssue | null;
@@ -55,7 +54,6 @@ export function useListeningController(options: UseListeningControllerOptions) {
   autoAnswerRef.current = autoAnswerEnabled;
 
   const audio = useAudioCapture({
-    isMac: options.isMac,
     settingsRef: options.settingsRef,
     setVoiceIssue,
   });

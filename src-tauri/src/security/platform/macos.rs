@@ -1,4 +1,4 @@
-use super::{random_key, KEY_BYTES};
+use crate::security::{random_key, KEY_BYTES};
 use security_framework::os::macos::keychain::SecKeychain;
 use std::path::Path;
 use zeroize::Zeroizing;

@@ -10,12 +10,18 @@ use std::{
 use zeroize::Zeroizing;
 
 mod cleanup;
+mod commands;
 mod migration;
+mod platform;
+
+pub(crate) use commands::{schedule_safe_cleanup, set_storage_root, storage_info};
+pub(crate) use platform::path_text;
 
 use cleanup::{directory_size, safe_cache_size, safe_cleanup};
 use migration::{
     copy_managed_root, migrate_legacy_file, migrate_legacy_webview, migrate_managed_root,
 };
+use platform::same_path;
 
 use crate::{
     security::{decrypt_envelope, encrypt_envelope, EnvelopeKind},
@@ -207,7 +213,6 @@ impl StorageManager {
         })
     }
 
-    #[cfg(target_os = "windows")]
     pub fn active_webview_path(&self) -> PathBuf {
         self.active_root.join(WEBVIEW_DIR)
     }
@@ -404,28 +409,6 @@ fn validate_pointer(pointer: &StoragePointer) -> Result<(), String> {
     Ok(())
 }
 
-fn same_path(left: &Path, right: &Path) -> bool {
-    if cfg!(windows) {
-        path_text(left).eq_ignore_ascii_case(&path_text(right))
-    } else {
-        left == right
-    }
-}
-
-pub(crate) fn path_text(path: &Path) -> String {
-    let text = path.to_string_lossy();
-    #[cfg(windows)]
-    {
-        if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
-            return format!(r"\\{rest}");
-        }
-        if let Some(rest) = text.strip_prefix(r"\\?\") {
-            return rest.to_string();
-        }
-    }
-    text.into_owned()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -596,18 +579,5 @@ mod tests {
         assert!(secure.exists());
         assert!(plaintext.exists());
         fs::remove_dir_all(root).expect("remove test root");
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn display_path_hides_windows_extended_length_prefix() {
-        assert_eq!(
-            path_text(Path::new(r"\\?\C:\Tools\Interview Buddy\cache")),
-            r"C:\Tools\Interview Buddy\cache"
-        );
-        assert_eq!(
-            path_text(Path::new(r"\\?\UNC\server\share\cache")),
-            r"\\server\share\cache"
-        );
     }
 }

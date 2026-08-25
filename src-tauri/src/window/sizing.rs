@@ -1,21 +1,19 @@
 use serde::{Deserialize, Serialize};
-use tauri::{Manager, State};
 
 use crate::{
-    app_state::AppState,
     error::{AppError, AppResult},
     settings::{AppSettings, WindowSizePreset},
 };
 
-const MIN_WIDTH: f64 = 680.0;
-const MIN_HEIGHT: f64 = 340.0;
+pub(super) const MIN_WIDTH: f64 = 680.0;
+pub(super) const MIN_HEIGHT: f64 = 340.0;
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct WindowSizeRequest {
-    preset: WindowSizePreset,
-    custom_width: u32,
-    custom_height: u32,
+    pub(super) preset: WindowSizePreset,
+    pub(super) custom_width: u32,
+    pub(super) custom_height: u32,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -97,7 +95,7 @@ fn target_size(
     }
 }
 
-fn monitor_metrics(
+pub(super) fn monitor_metrics(
     window: &tauri::WebviewWindow,
 ) -> Result<(tauri::Monitor, f64, f64, f64), AppError> {
     let monitor = window
@@ -112,7 +110,10 @@ fn monitor_metrics(
     Ok((monitor, work_size.width, work_size.height, scale_factor))
 }
 
-fn size_info(window: &tauri::WebviewWindow, preset: WindowSizePreset) -> AppResult<WindowSizeInfo> {
+pub(super) fn size_info(
+    window: &tauri::WebviewWindow,
+    preset: WindowSizePreset,
+) -> AppResult<WindowSizeInfo> {
     let (_, monitor_width, monitor_height, scale_factor) = monitor_metrics(window)?;
     let actual = window
         .inner_size()
@@ -167,132 +168,11 @@ pub(crate) fn apply_saved_window_size(
     )
 }
 
-#[tauri::command]
-pub(crate) fn window_size_info(
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
-) -> AppResult<WindowSizeInfo> {
-    let preset = state
-        .settings
-        .read()
-        .map_err(|error| error.to_string())?
-        .window_size_preset;
-    let window = app
-        .get_webview_window("main")
-        .ok_or_else(|| AppError::from("没有找到主窗口"))?;
-    size_info(&window, preset)
-}
-
-#[tauri::command]
-pub(crate) fn apply_window_size(
+pub(super) fn apply_requested_window_size(
+    window: &tauri::WebviewWindow,
     request: WindowSizeRequest,
-    app: tauri::AppHandle,
 ) -> AppResult<WindowSizeInfo> {
-    let window = app
-        .get_webview_window("main")
-        .ok_or_else(|| AppError::from("没有找到主窗口"))?;
-    resize_window(&window, request, false)
-}
-
-#[tauri::command]
-pub(crate) fn remember_window_size(
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
-) -> AppResult<WindowSizeInfo> {
-    crate::settings::commands::ensure_security_ready(&state)?;
-    let window = app
-        .get_webview_window("main")
-        .ok_or_else(|| AppError::from("没有找到主窗口"))?;
-    let (_, _, _, scale_factor) = monitor_metrics(&window)?;
-    let actual = window
-        .inner_size()
-        .map_err(|error| format!("读取窗口尺寸失败：{error}"))?
-        .to_logical::<f64>(scale_factor);
-    let mut updated = state
-        .settings
-        .read()
-        .map_err(|error| error.to_string())?
-        .clone();
-    updated.window_size_preset = WindowSizePreset::Custom;
-    updated.custom_window_width = actual.width.round().clamp(MIN_WIDTH, 3_840.0) as u32;
-    updated.custom_window_height = actual.height.round().clamp(MIN_HEIGHT, 2_160.0) as u32;
-    state
-        .settings_store
-        .read()
-        .map_err(|error| error.to_string())?
-        .as_ref()
-        .ok_or_else(|| AppError::from("安全设置存储不可用"))?
-        .save(&updated)?;
-    *state.settings.write().map_err(|error| error.to_string())? = updated;
-    size_info(&window, WindowSizePreset::Custom)
-}
-
-#[tauri::command]
-pub(crate) fn quit_app(app: tauri::AppHandle) {
-    app.exit(0);
-}
-
-pub(crate) fn toggle_main_window(app: &tauri::AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        if window.is_visible().unwrap_or(false) {
-            let _ = window.hide();
-        } else {
-            let _ = window.unminimize();
-            let _ = window.show();
-            let _ = window.set_focus();
-        }
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn macos_overlay_behavior(
-    mut behavior: objc2_app_kit::NSWindowCollectionBehavior,
-) -> objc2_app_kit::NSWindowCollectionBehavior {
-    use objc2_app_kit::NSWindowCollectionBehavior;
-
-    behavior.remove(
-        NSWindowCollectionBehavior::FullScreenPrimary
-            | NSWindowCollectionBehavior::FullScreenNone
-            | NSWindowCollectionBehavior::Primary
-            | NSWindowCollectionBehavior::Auxiliary,
-    );
-    behavior.insert(
-        NSWindowCollectionBehavior::CanJoinAllSpaces
-            | NSWindowCollectionBehavior::FullScreenAuxiliary
-            | NSWindowCollectionBehavior::CanJoinAllApplications,
-    );
-    behavior
-}
-
-#[cfg(target_os = "macos")]
-pub(crate) fn configure_macos_overlay_spaces(window: &tauri::WebviewWindow) -> AppResult<()> {
-    use objc2_app_kit::NSWindow;
-
-    let pointer = window
-        .ns_window()
-        .map_err(|error| format!("读取 macOS 原生窗口失败：{error}"))?
-        .cast::<NSWindow>();
-    let ns_window =
-        unsafe { pointer.as_ref() }.ok_or_else(|| AppError::from("macOS 原生窗口指针为空"))?;
-    let behavior = macos_overlay_behavior(ns_window.collectionBehavior());
-    ns_window.setCollectionBehavior(behavior);
-    Ok(())
-}
-
-#[cfg(target_os = "windows")]
-pub(crate) fn query_display_affinity(window: &tauri::WebviewWindow) -> Result<u32, String> {
-    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-    use windows::Win32::Foundation::HWND;
-    use windows::Win32::UI::WindowsAndMessaging::GetWindowDisplayAffinity;
-    let handle = window.window_handle().map_err(|error| error.to_string())?;
-    let RawWindowHandle::Win32(win32) = handle.as_raw() else {
-        return Err("当前窗口不是 Win32 窗口".into());
-    };
-    let hwnd = HWND(win32.hwnd.get() as *mut std::ffi::c_void);
-    let mut affinity = 0u32;
-    unsafe { GetWindowDisplayAffinity(hwnd, &mut affinity) }
-        .map_err(|error| format!("读取窗口捕获保护失败：{error}"))?;
-    Ok(affinity)
+    resize_window(window, request, false)
 }
 
 #[cfg(test)]
@@ -337,27 +217,5 @@ mod tests {
         let minimum = target_size(WindowSizePreset::Custom, 1920.0, 1040.0, 100, 100);
         assert_eq!(minimum.width, 680.0);
         assert_eq!(minimum.height, 340.0);
-    }
-
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn macos_overlay_joins_spaces_and_full_screen_without_becoming_primary() {
-        use objc2_app_kit::NSWindowCollectionBehavior;
-
-        let behavior = macos_overlay_behavior(
-            NSWindowCollectionBehavior::Managed
-                | NSWindowCollectionBehavior::FullScreenPrimary
-                | NSWindowCollectionBehavior::FullScreenNone
-                | NSWindowCollectionBehavior::Primary
-                | NSWindowCollectionBehavior::Auxiliary,
-        );
-        assert!(behavior.contains(NSWindowCollectionBehavior::Managed));
-        assert!(behavior.contains(NSWindowCollectionBehavior::CanJoinAllSpaces));
-        assert!(behavior.contains(NSWindowCollectionBehavior::FullScreenAuxiliary));
-        assert!(behavior.contains(NSWindowCollectionBehavior::CanJoinAllApplications));
-        assert!(!behavior.contains(NSWindowCollectionBehavior::FullScreenPrimary));
-        assert!(!behavior.contains(NSWindowCollectionBehavior::FullScreenNone));
-        assert!(!behavior.contains(NSWindowCollectionBehavior::Primary));
-        assert!(!behavior.contains(NSWindowCollectionBehavior::Auxiliary));
     }
 }

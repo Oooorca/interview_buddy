@@ -8,6 +8,7 @@ import type { useInterviewSession } from "../features/interview/useInterviewSess
 import { TranscriptPanel } from "../features/listening/TranscriptPanel";
 import type { useListeningController } from "../features/listening/useListeningController";
 import type { useAppSettings } from "../features/settings/useAppSettings";
+import { appPlatform } from "../platform";
 import type { AppStatus } from "../shared/types";
 
 type InterviewWorkspaceProps = {
@@ -16,14 +17,13 @@ type InterviewWorkspaceProps = {
   answer: ReturnType<typeof useAnswerController>;
   listening: ReturnType<typeof useListeningController>;
   status: AppStatus;
-  modifier: string;
   onClearTranscripts: () => void;
   onNewSession: () => void;
 };
 
 export function InterviewWorkspace(props: InterviewWorkspaceProps) {
   const { t } = useTranslation();
-  const { settings, interview, answer, listening, status, modifier } = props;
+  const { settings, interview, answer, listening, status } = props;
   return <section className="workspace">
     <InputPanel listening={listening.listening} autoAnswer={listening.autoAnswer}
       pendingTranscriptions={listening.pendingTranscriptions} voiceIssue={listening.voiceIssue}>
@@ -46,13 +46,13 @@ export function InterviewWorkspace(props: InterviewWorkspaceProps) {
             placeholder={t("context.draftPlaceholder")} />
           <div className="context-actions">
             <button className="action-button context-clear"
-              title={t("context.clearTitle", { shortcut: `${modifier}C` })}
+              title={t("context.clearTitle", { shortcut: `${appPlatform.shortcutModifier}C` })}
               disabled={status === "working" || (!interview.input.trim() && interview.captures.length === 0)}
               onClick={interview.clearCurrentInput}>
               <span>⌫ {t("actions.clear")}</span><kbd>C</kbd>
             </button>
             <button className="action-button context-send"
-              title={t("context.sendTitle", { shortcut: `${modifier}I` })}
+              title={t("context.sendTitle", { shortcut: `${appPlatform.shortcutModifier}I` })}
               disabled={Boolean(settings.securityIssue) || status === "working" || answer.answering
                 || (!interview.input.trim() && interview.captures.length === 0)}
               onClick={() => void answer.sendCurrentTurn()}>

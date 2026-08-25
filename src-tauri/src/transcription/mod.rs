@@ -48,15 +48,15 @@ pub(crate) fn start_system_audio(state: State<'_, AppState>) -> AppResult<()> {
     if current.is_some() {
         return Err("系统音频已经在录制".into());
     }
-    *current = Some(audio::system::SystemAudioRecorder::start(
+    *current = Some(audio::SystemAudioRecorder::start(
         (!device_id.is_empty()).then_some(device_id),
     )?);
     Ok(())
 }
 
 #[tauri::command]
-pub(crate) fn list_system_audio_devices() -> AppResult<Vec<audio::system::AudioOutputDevice>> {
-    Ok(audio::system::list_output_devices()?)
+pub(crate) fn list_system_audio_devices() -> AppResult<Vec<audio::AudioOutputDevice>> {
+    Ok(audio::list_output_devices()?)
 }
 
 #[tauri::command]

@@ -1,5 +1,5 @@
-use super::{random_key, KEY_BYTES};
-use std::{fs, path::Path};
+use crate::security::{random_key, KEY_BYTES};
+use std::{fs, io::Write, path::Path};
 use windows::{
     core::PCWSTR,
     Win32::{
@@ -27,7 +27,7 @@ pub fn load_key(path: &Path, service: &str, create: bool) -> Result<Zeroizing<Ve
     }
     let key = random_key();
     let protected = protect(&key, service)?;
-    super::super::settings::store::atomic_write_new(path, &protected)?;
+    atomic_write_new(path, &protected)?;
     Ok(key)
 }
 
@@ -94,6 +94,26 @@ fn blob(data: &[u8]) -> Result<CRYPT_INTEGER_BLOB, String> {
             .map_err(|_| "DPAPI 输入过大".to_string())?,
         pbData: data.as_ptr() as *mut u8,
     })
+}
+
+fn atomic_write_new(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| "无法确定安全文件目录".to_string())?;
+    fs::create_dir_all(parent).map_err(|error| format!("无法创建安全文件目录：{error}"))?;
+    let mut temporary = tempfile::NamedTempFile::new_in(parent)
+        .map_err(|error| format!("无法创建安全临时文件：{error}"))?;
+    temporary
+        .write_all(bytes)
+        .map_err(|error| format!("无法写入安全临时文件：{error}"))?;
+    temporary
+        .as_file_mut()
+        .sync_all()
+        .map_err(|error| format!("无法同步安全临时文件：{error}"))?;
+    temporary
+        .persist_noclobber(path)
+        .map_err(|error| format!("无法保存安全文件：{}", error.error))?;
+    Ok(())
 }
 
 #[cfg(test)]

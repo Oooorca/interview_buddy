@@ -280,3 +280,43 @@ fn preview(body: &str) -> String {
     }
     output.replace(['\r', '\n'], " ")
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashSet, sync::Mutex};
+
+    use super::*;
+
+    #[test]
+    fn history_keeps_only_supported_roles_in_order() {
+        let history = vec![
+            ConversationMessage {
+                role: "system".into(),
+                content: "ignore".into(),
+            },
+            ConversationMessage {
+                role: "user".into(),
+                content: "question".into(),
+            },
+            ConversationMessage {
+                role: "assistant".into(),
+                content: "answer".into(),
+            },
+        ];
+        let bounded = bounded_history(&history);
+        assert_eq!(bounded.len(), 2);
+        assert_eq!(bounded[0]["role"], "user");
+        assert_eq!(bounded[1]["role"], "assistant");
+    }
+
+    #[test]
+    fn cancellation_guard_clears_stale_and_completed_requests() {
+        let requests = Mutex::new(HashSet::from(["request".to_string()]));
+        {
+            let _guard = CancellationGuard::new(&requests, "request".into()).expect("create guard");
+            assert!(!requests.lock().expect("requests").contains("request"));
+            requests.lock().expect("requests").insert("request".into());
+        }
+        assert!(!requests.lock().expect("requests").contains("request"));
+    }
+}

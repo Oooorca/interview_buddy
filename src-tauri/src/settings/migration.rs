@@ -118,3 +118,83 @@ pub fn resolved_system_prompt<'a>(
         PromptMode::Disabled => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legacy_prompts_migrate_empty_and_known_defaults_to_default_mode() {
+        let mut empty = AppSettings {
+            system_prompt: Some(String::new()),
+            ..AppSettings::default()
+        };
+        assert!(migrate_legacy_settings("{}", &mut empty));
+        assert_eq!(empty.system_prompt_mode, PromptMode::Default);
+
+        let mut builtin = AppSettings {
+            system_prompt: Some(system_prompt("zh-CN").into()),
+            ..AppSettings::default()
+        };
+        migrate_legacy_settings("{}", &mut builtin);
+        assert_eq!(builtin.system_prompt_mode, PromptMode::Default);
+
+        let mut custom = AppSettings {
+            system_prompt: Some("我的专用回答规则".into()),
+            ..AppSettings::default()
+        };
+        migrate_legacy_settings("{}", &mut custom);
+        assert_eq!(custom.system_prompt_mode, PromptMode::Custom);
+    }
+
+    #[test]
+    fn legacy_settings_keep_the_previous_chinese_behavior() {
+        let mut settings = AppSettings {
+            my_transcription_language: "en".into(),
+            their_transcription_language: "en".into(),
+            ..AppSettings::default()
+        };
+        assert!(migrate_legacy_settings("{}", &mut settings));
+        assert_eq!(settings.ui_language, UiLanguage::ZhCn);
+        assert_eq!(settings.answer_language, AnswerLanguage::ZhCn);
+        assert_eq!(settings.my_transcription_language, "en-US");
+        assert_eq!(settings.their_transcription_language, "en-US");
+
+        let source = r#"{"uiLanguage":"en-US","answerLanguage":"follow-ui","systemPromptMode":"default","codingPromptMode":"default"}"#;
+        let mut current = AppSettings::default();
+        assert!(!migrate_legacy_settings(source, &mut current));
+        assert_eq!(current.ui_language, UiLanguage::System);
+        assert_eq!(current.answer_language, AnswerLanguage::FollowUi);
+    }
+
+    #[test]
+    fn prompt_modes_resolve_and_normalize_safely() {
+        let mut settings = AppSettings::default();
+        assert_eq!(
+            resolved_system_prompt(&settings, "zh-CN"),
+            Some(system_prompt("zh-CN"))
+        );
+        assert_ne!(system_prompt("zh-CN"), system_prompt("en-US"));
+
+        settings.system_prompt_mode = PromptMode::Disabled;
+        settings.system_prompt = Some("ignored".into());
+        assert!(normalize_prompt_settings(&mut settings, true).expect("normalize"));
+        assert_eq!(settings.system_prompt, None);
+        assert_eq!(resolved_system_prompt(&settings, "zh-CN"), None);
+
+        settings.system_prompt_mode = PromptMode::Custom;
+        assert!(normalize_prompt_settings(&mut settings, true).is_err());
+        settings.system_prompt = Some("custom".into());
+        assert!(!normalize_prompt_settings(&mut settings, true).expect("custom"));
+        assert_eq!(resolved_system_prompt(&settings, "en-US"), Some("custom"));
+    }
+
+    #[test]
+    fn default_prompt_settings_serialize_without_copying_builtin_text() {
+        let value = serde_json::to_value(AppSettings::default()).expect("serialize settings");
+        assert_eq!(value["systemPromptMode"], "default");
+        assert_eq!(value["codingPromptMode"], "default");
+        assert!(value["systemPrompt"].is_null());
+        assert!(value["codingPrompt"].is_null());
+    }
+}

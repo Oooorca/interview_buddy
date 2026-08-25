@@ -12,19 +12,16 @@ import { useShortcuts } from "../features/shell/useShortcuts";
 import { useWindowSizing } from "../features/window/useWindowSizing";
 import { errorMessage } from "../services/backend";
 import type { AppStatus } from "../shared/types";
+import { appPlatform, isTauriRuntime } from "../platform";
 import { InterviewWorkspace } from "./InterviewWorkspace";
 import { SettingsWorkspace } from "./SettingsWorkspace";
-
-const IS_MAC = navigator.userAgent.includes("Mac");
-const IS_TAURI = "__TAURI_INTERNALS__" in window;
-const MODIFIER = IS_MAC ? "⌘⇧" : "Ctrl+Shift+";
 
 function App() {
   const { t } = useTranslation();
   const [status, setStatus] = useState<AppStatus>("ready");
-  const settings = useAppSettings(IS_TAURI);
+  const settings = useAppSettings(isTauriRuntime);
   const windowSizing = useWindowSizing({
-    isTauri: IS_TAURI,
+    isTauri: isTauriRuntime,
     settingsRef: settings.settingsRef,
     setSettings: settings.setSettings,
   });
@@ -54,7 +51,6 @@ function App() {
     onIdleRef: onAnswerIdleRef,
   });
   const listening = useListeningController({
-    isMac: IS_MAC,
     settingsRef: settings.settingsRef,
     apiKeyConfigured: settings.apiKeyConfigured,
     securityIssue: settings.securityIssue,
@@ -98,11 +94,10 @@ function App() {
     send: () => { void answer.sendCurrentTurn(); },
   });
 
-  return <main className={`app-shell ${IS_MAC ? "platform-mac" : "platform-windows"}`}>
+  return <main className={`app-shell ${appPlatform.rootClass}`}>
     <TitleBar status={status} listening={listening.listening} autoAnswer={listening.autoAnswer}
       settingsOpen={settings.settingsOpen} securityLocked={Boolean(settings.securityIssue)}
       notice={settings.notice} shortcutIssue={settings.shortcutIssue}
-      modifier={MODIFIER} isMac={IS_MAC}
       onCapture={() => void interview.takeRegionScreenshot()}
       onListeningToggle={() => void (listening.listening ? listening.stop() : listening.start())}
       onAutoAnswerToggle={() => void listening.toggleAutoAnswer()}
@@ -113,10 +108,10 @@ function App() {
           audioDevices={audioDevices} windowSizing={windowSizing}
           showError={(label, error) => showErrorRef.current(label, error)} />
       : <InterviewWorkspace settings={settings} interview={interview} answer={answer}
-          listening={listening} status={status} modifier={MODIFIER}
+          listening={listening} status={status}
           onClearTranscripts={clearTranscripts} onNewSession={startNewSession} />}
 
-    <ShortcutFooter isMac={IS_MAC} />
+    <ShortcutFooter />
   </main>;
 }
 

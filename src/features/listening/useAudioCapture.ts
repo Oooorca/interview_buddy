@@ -19,14 +19,13 @@ export type MicSession = {
 };
 
 type UseAudioCaptureOptions = {
-  isMac: boolean;
   settingsRef: MutableRefObject<AppSettings>;
   setVoiceIssue: (issue: string) => void;
 };
 
-export function useAudioCapture({ isMac, settingsRef, setVoiceIssue }: UseAudioCaptureOptions) {
+export function useAudioCapture({ settingsRef, setVoiceIssue }: UseAudioCaptureOptions) {
   const { t } = useTranslation();
-  const { describeMicrophoneError } = useListeningPlatform(isMac);
+  const { describeMicrophoneError } = useListeningPlatform();
   const micRef = useRef<MicSession | null>(null);
   const systemActiveRef = useRef(false);
 
