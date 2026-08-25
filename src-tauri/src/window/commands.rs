@@ -38,7 +38,7 @@ pub(crate) fn apply_window_size(
     apply_requested_window_size(&window, request)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn remember_window_size(
     app: tauri::AppHandle,
     state: State<'_, AppState>,

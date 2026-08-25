@@ -43,7 +43,9 @@ pub(crate) fn restore_main_after_region(app: &tauri::AppHandle) {
 }
 
 #[tauri::command]
-pub(crate) fn open_region_selector(
+// Keep this command async: creating a second WebView2 from a synchronous IPC handler can
+// block the Windows event loop while WebView2 waits for its environment callback.
+pub(crate) async fn open_region_selector(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> AppResult<()> {

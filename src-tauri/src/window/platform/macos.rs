@@ -3,6 +3,8 @@ use crate::{
     storage::StorageManager,
 };
 
+use std::{sync::mpsc, time::Duration};
+
 pub(crate) fn build_main_window(
     app: &tauri::AppHandle,
     config: &tauri::utils::config::WindowConfig,
@@ -34,7 +36,7 @@ fn overlay_behavior(
     behavior
 }
 
-pub(crate) fn configure_overlay(window: &tauri::WebviewWindow) -> AppResult<()> {
+fn configure_native_overlay(window: &tauri::WebviewWindow) -> Result<(), String> {
     use objc2_app_kit::NSWindow;
 
     let pointer = window
@@ -45,6 +47,20 @@ pub(crate) fn configure_overlay(window: &tauri::WebviewWindow) -> AppResult<()> 
         unsafe { pointer.as_ref() }.ok_or_else(|| AppError::from("macOS 原生窗口指针为空"))?;
     let behavior = overlay_behavior(ns_window.collectionBehavior());
     ns_window.setCollectionBehavior(behavior);
+    Ok(())
+}
+
+pub(crate) fn configure_overlay(window: &tauri::WebviewWindow) -> AppResult<()> {
+    let (sender, receiver) = mpsc::sync_channel(1);
+    let native_window = window.clone();
+    window
+        .run_on_main_thread(move || {
+            let _ = sender.send(configure_native_overlay(&native_window));
+        })
+        .map_err(|error| format!("调度 macOS 原生窗口配置失败：{error}"))?;
+    receiver
+        .recv_timeout(Duration::from_secs(2))
+        .map_err(|error| format!("等待 macOS 原生窗口配置超时：{error}"))??;
     Ok(())
 }
 

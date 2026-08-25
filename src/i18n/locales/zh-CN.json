@@ -53,9 +53,9 @@
     "applying": "调整中…",
     "customHint": "拖动窗口边缘即可调整；停止拖动后会自动记住当前大小。",
     "presets": {
-      "compact": { "title": "紧凑", "description": "最少遮挡，适合 1080p 或边看边答" },
+      "compact": { "title": "紧凑", "description": "最少遮挡，适合边看边读" },
       "standard": { "title": "标准", "description": "兼顾阅读空间与悬浮占用" },
-      "spacious": { "title": "宽敞", "description": "更大的转写区与回答区，适合 2K/4K" },
+      "spacious": { "title": "宽敞", "description": "更大的转写区和回答区" },
       "custom": { "title": "自定义", "description": "记住你手动拖动后的逻辑尺寸" }
     }
   },

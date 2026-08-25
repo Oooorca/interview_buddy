@@ -53,9 +53,9 @@
     "applying": "Applying…",
     "customHint": "Drag a window edge to resize it. The logical size is remembered when you stop dragging.",
     "presets": {
-      "compact": { "title": "Compact", "description": "Minimal obstruction for 1080p or side-by-side use" },
+      "compact": { "title": "Compact", "description": "Minimal obstruction for side-by-side reading" },
       "standard": { "title": "Standard", "description": "Balances readable space with overlay footprint" },
-      "spacious": { "title": "Spacious", "description": "Larger transcript and answer areas for QHD or 4K" },
+      "spacious": { "title": "Spacious", "description": "Larger transcription and answer areas" },
       "custom": { "title": "Custom", "description": "Remembers the logical size after manual resizing" }
     }
   },

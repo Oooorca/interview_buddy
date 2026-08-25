@@ -31,7 +31,7 @@ pub(crate) async fn transcribe_audio(
     .await?)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn start_system_audio(state: State<'_, AppState>) -> AppResult<()> {
     ensure_security_ready(&state)?;
     let device_id = state
@@ -54,7 +54,7 @@ pub(crate) fn start_system_audio(state: State<'_, AppState>) -> AppResult<()> {
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn list_system_audio_devices() -> AppResult<Vec<audio::AudioOutputDevice>> {
     Ok(audio::list_output_devices()?)
 }

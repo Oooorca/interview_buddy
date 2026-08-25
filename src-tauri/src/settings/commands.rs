@@ -34,7 +34,7 @@ pub(crate) fn load_settings(state: State<'_, AppState>) -> AppResult<SettingsLoa
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn save_settings(
     request: SaveSettingsRequest,
     state: State<'_, AppState>,
@@ -75,7 +75,7 @@ pub(crate) fn ensure_security_ready(state: &State<'_, AppState>) -> Result<(), S
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn reset_secure_settings(state: State<'_, AppState>) -> AppResult<SecurityResetResult> {
     let pointer_quarantine = storage::quarantine_pointer(&state.config_dir)?;
     let (store, settings, quarantine) = super::store::SettingsStore::quarantine_and_reset(

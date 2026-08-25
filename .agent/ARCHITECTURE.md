@@ -151,6 +151,17 @@ src/
 
 ## 6. Change checklist
 
+### Runtime-thread safety
+
+- Tauri commands run on the main thread unless they are `async` or use `#[tauri::command(async)]`.
+- Every command that creates a window or WebView must be asynchronous. On Windows, synchronous
+  WebView2 creation can deadlock the event loop.
+- Commands that perform filesystem scans, durable writes, key-store operations, device discovery,
+  recorder startup/shutdown, or other potentially blocking native work must not run as synchronous
+  IPC handlers.
+- AppKit objects on macOS must only be read or mutated through Tauri's main-thread dispatcher when
+  the caller may be an async command or worker thread.
+
 Before editing:
 
 1. Inspect `git status`, the real source tree, and the relevant domain facade.

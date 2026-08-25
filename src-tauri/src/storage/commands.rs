@@ -4,12 +4,12 @@ use crate::{app_state::AppState, error::AppResult, settings::commands::ensure_se
 
 use super::StorageInfo;
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn storage_info(state: State<'_, AppState>) -> AppResult<StorageInfo> {
     Ok(state.storage.info()?)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn set_storage_root(path: String, state: State<'_, AppState>) -> AppResult<StorageInfo> {
     ensure_security_ready(&state)?;
     let settings = state
@@ -29,7 +29,7 @@ pub(crate) fn set_storage_root(path: String, state: State<'_, AppState>) -> AppR
         .configure_root(std::path::Path::new(path.trim()))?)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn schedule_safe_cleanup(state: State<'_, AppState>) -> AppResult<StorageInfo> {
     Ok(state.storage.schedule_cleanup()?)
 }
