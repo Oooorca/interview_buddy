@@ -1,0 +1,47 @@
+.answer-markdown {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 13px 15px 18px;
+  color: rgba(249, 250, 252, .90);
+  font-size: 13px;
+  line-height: 1.66;
+}
+.answer-markdown > :first-child { margin-top: 0; }
+.answer-markdown > :last-child { margin-bottom: 0; }
+.answer-markdown h1, .answer-markdown h2, .answer-markdown h3 { margin: 1.05em 0 .48em; color: #fff; line-height: 1.3; }
+.answer-markdown h1 { font-size: 18px; }
+.answer-markdown h2 { font-size: 16px; }
+.answer-markdown h3 { font-size: 14px; }
+.answer-markdown p { margin: .55em 0; }
+.answer-markdown ul, .answer-markdown ol { margin: .55em 0; padding-left: 1.55em; }
+.answer-markdown li + li { margin-top: .2em; }
+.answer-markdown blockquote { margin: .75em 0; padding: 2px 0 2px 11px; border-left: 3px solid rgba(126,151,255,.50); color: rgba(235,238,246,.68); }
+.answer-markdown a { color: #a8bcff; text-decoration: none; }
+.answer-markdown a:hover { text-decoration: underline; }
+.answer-markdown :not(pre) > code { padding: 2px 5px; border: 1px solid rgba(255,255,255,.08); border-radius: 4px; background: rgba(255,255,255,.07); color: #dce4ff; font: .9em/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.answer-markdown table { width: 100%; margin: .8em 0; border-collapse: collapse; font-size: 12px; }
+.answer-markdown th, .answer-markdown td { padding: 6px 8px; border: 1px solid rgba(255,255,255,.10); text-align: left; }
+.answer-markdown th { background: rgba(255,255,255,.055); color: rgba(255,255,255,.82); }
+.answer-markdown hr { border: 0; border-top: 1px solid rgba(255,255,255,.10); }
+.answer-code-block { margin: .8em 0; overflow: hidden; border: 1px solid rgba(255,255,255,.10); border-radius: 9px; background: #111318; }
+.answer-code-header { height: 30px; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 11px; border-bottom: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.035); }
+.answer-code-header span { color: rgba(255,255,255,.42); font: 9px/1 ui-monospace, SFMono-Regular, Consolas, monospace; text-transform: uppercase; }
+.answer-code-header button { height: 21px; padding: 0 7px; border: 1px solid rgba(255,255,255,.09); border-radius: 5px; background: rgba(255,255,255,.045); color: rgba(255,255,255,.55); font-size: 8px; }
+.answer-code-header button:hover { color: #fff; background: rgba(255,255,255,.09); }
+.answer-code-block pre { margin: 0 !important; padding: 10px 12px 11px !important; overflow: auto; background: transparent !important; font: 11px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace !important; }
+.answer-line-number { display: inline-block; width: 26px; padding-right: 10px; color: rgba(255,255,255,.19); text-align: right; user-select: none; }
+.answer-markdown .katex { font-size: 1.02em; }
+.answer-markdown .katex-display { margin: .8em 0; overflow-x: auto; overflow-y: hidden; }
+
+.shortcut-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, .27);
+  font-size: 9px;
+  white-space: nowrap;
+  user-select: none;
+}

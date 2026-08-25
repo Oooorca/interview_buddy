@@ -1,0 +1,97 @@
+@import "./tokens.css";
+@import "./shell.css";
+@import "./interview.css";
+@import "./markdown.css";
+@import "./settings.css";
+@import "./region.css";
+
+@media (max-width: 650px) {
+  .notice, .shortcut-hint span:nth-child(-n+3) { display: none; }
+  .command-bar { gap: 2px; }
+  .command-bar .action-button { padding: 0 7px; }
+  .window-controls { gap: 1px; }
+}
+
+/* Compact overlay: retain both work panes while reducing chrome and secondary text. */
+@media (max-width: 820px), (max-height: 500px) {
+  .app-shell { grid-template-rows: 40px minmax(0, 1fr) 21px; gap: 5px; }
+  .command-bar { gap: 3px; padding: 4px 5px 4px 7px; border-radius: 11px; }
+  .action-button { height: 29px; gap: 4px; padding: 0 8px; font-size: 11px; }
+  .action-button kbd { padding: 2px 4px; font-size: 7px; }
+  .window-control { width: 29px; height: 29px; flex-basis: 29px; }
+  .pane { border-radius: 11px; }
+  .pane header { height: 34px; padding: 0 10px; font-size: 8px; }
+  .answer-markdown { padding: 10px 12px 14px; font-size: 12px; line-height: 1.6; }
+  .answer-markdown h1 { font-size: 16px; }
+  .answer-markdown h2 { font-size: 14px; }
+  .answer-markdown h3 { font-size: 13px; }
+  .answer-code-block pre { font-size: 10px !important; }
+  .settings-panel { gap: 7px; padding: 10px; border-radius: 11px; }
+  .settings-page, .general-column { gap: 9px; }
+  .settings-tabs button { height: 26px; padding: 0 10px; font-size: 9px; }
+  .shortcut-hint { gap: 8px; font-size: 8px; }
+}
+
+@media (max-width: 760px) {
+  .audio-channel-fields { grid-template-columns: 1fr; }
+  .audio-page-heading { align-items: flex-start; }
+  .storage-cleanup-actions { align-items: stretch; flex-direction: column; }
+}
+
+@media (max-height: 420px) {
+  .context-stack {
+    grid-template-rows: auto minmax(58px, .7fr) minmax(88px, 1.3fr);
+    overflow-y: auto;
+  }
+  .context-section-heading { min-height: 30px; }
+  .input-pane .fixed-context-input { height: 62px; min-height: 62px; }
+  .input-pane .draft-input { padding-top: 8px; padding-bottom: 8px; }
+  .context-actions { min-height: 39px; padding-top: 4px; padding-bottom: 5px; }
+}
+
+/* Spacious overlay: increase readability without scaling into a full desktop app. */
+@media (min-width: 1100px) and (min-height: 650px) {
+  .app-shell { grid-template-rows: 47px minmax(0, 1fr) 26px; gap: 9px; padding: 2px; }
+  .command-bar { gap: 8px; padding: 6px 9px 6px 12px; border-radius: 15px; }
+  .action-button { height: 34px; padding: 0 12px; font-size: 13px; }
+  .window-control { width: 34px; height: 34px; flex-basis: 34px; }
+  .notice { max-width: 260px; font-size: 11px; }
+  .workspace { gap: 9px; }
+  .pane { border-radius: 16px; }
+  .pane header { height: 42px; padding: 0 16px; font-size: 10px; }
+  .context-section-heading { min-height: 38px; padding-inline: 14px 12px; }
+  .context-section-heading b { font-size: 11px; }
+  .context-section-heading em, .section-tools button { font-size: 9px; }
+  .input-pane .fixed-context-input { height: 90px; min-height: 90px; padding: 10px 11px; font-size: 12px; }
+  .input-pane .draft-input { padding: 15px 17px 18px; font-size: 14px; }
+  .transcript-list { gap: 7px; padding: 9px 10px 10px; }
+  .input-pane .transcript-entry textarea { font-size: 11px; }
+  .answer-markdown { padding: 17px 20px 22px; font-size: 14px; line-height: 1.7; }
+  .answer-markdown h1 { font-size: 20px; }
+  .answer-markdown h2 { font-size: 17px; }
+  .answer-markdown h3 { font-size: 15px; }
+  .answer-code-block pre { padding: 13px 15px 14px !important; font-size: 12px !important; }
+  .shortcut-hint { gap: 15px; font-size: 10px; }
+  .settings-panel { gap: 12px; padding: 17px; border-radius: 16px; }
+  .settings-page { gap: 13px; }
+  .general-page, .general-column { gap: 15px; }
+  .general-page-heading strong, .audio-page-heading strong, .storage-page-heading strong { font-size: 13px; }
+  .general-page-heading span, .audio-page-heading span, .storage-page-heading span { font-size: 10px; }
+  .settings-panel label { font-size: 11px; }
+  .settings-panel input, .settings-panel textarea, .settings-panel select { padding: 9px 10px; }
+  .window-preset-grid button { min-height: 66px; padding: 11px 12px; }
+  .window-preset-grid b { font-size: 11px; }
+  .window-preset-grid small, .window-custom-note { font-size: 9px; }
+  .window-size-summary span { font-size: 8px; }
+  .window-size-summary strong { font-size: 10px; }
+}
+
+@media (min-width: 1450px) and (min-height: 850px) {
+  .app-shell { grid-template-rows: 51px minmax(0, 1fr) 28px; gap: 10px; padding: 3px; }
+  .action-button { height: 37px; font-size: 14px; }
+  .window-control { width: 37px; height: 37px; flex-basis: 37px; }
+  .pane header { height: 45px; font-size: 11px; }
+  .answer-markdown { padding: 20px 24px 26px; font-size: 15px; }
+  .input-pane .draft-input { font-size: 15px; }
+  .settings-panel { padding: 20px; }
+}

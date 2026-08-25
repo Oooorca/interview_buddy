@@ -1,0 +1,2 @@
+"NSMicrophoneUsageDescription" = "Interview Buddy uses the microphone to transcribe your speech.";
+"NSScreenCaptureUsageDescription" = "Interview Buddy uses screen and system audio recording for screenshots and meeting transcription.";

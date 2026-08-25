@@ -7,29 +7,50 @@ use std::{
         RwLock,
     },
 };
+use zeroize::Zeroizing;
 
-const POINTER_FILE: &str = "storage-location.json";
-const DEFAULT_DATA_DIR: &str = "cache";
-const SETTINGS_FILE: &str = "settings.json";
+mod cleanup;
+mod migration;
+
+use cleanup::{directory_size, safe_cache_size, safe_cleanup};
+use migration::{
+    copy_managed_root, migrate_legacy_file, migrate_legacy_webview, migrate_managed_root,
+};
+
+use crate::{
+    security::{decrypt_envelope, encrypt_envelope, EnvelopeKind},
+    settings::store::atomic_replace,
+};
+
+const POINTER_FILE: &str = "storage-location.secure.json";
+const POINTER_BACKUP_FILE: &str = "storage-location.secure.bak";
+const LEGACY_POINTER_FILE: &str = "storage-location.json";
+const DEFAULT_DATA_DIR: &str = ".interview-buddy";
+const DEFAULT_DEV_DATA_DIR: &str = ".interview-buddy-dev";
+const LEGACY_PORTABLE_DATA_DIR: &str = "cache";
+const SETTINGS_FILE: &str = "settings.secure.json";
+const SETTINGS_BACKUP_FILE: &str = "settings.secure.bak";
+const LEGACY_SETTINGS_FILE: &str = "settings.json";
 const WEBVIEW_DIR: &str = "webview2";
 const STORAGE_MARKER: &str = ".interview-buddy-storage";
 const CLEANUP_MARKER: &str = ".cleanup-pending";
+const MAX_PLAINTEXT_POINTER: u64 = 64 * 1024;
 
-const SAFE_CACHE_PATHS: &[&str] = &[
-    "Default/Cache",
-    "Default/Code Cache",
-    "Default/GPUCache",
-    "Default/DawnGraphiteCache",
-    "Default/DawnWebGPUCache",
-    "GPUCache",
-    "ShaderCache",
-    "GrShaderCache",
-    "GPUPersistentCache",
-    "component_crx_cache",
-    "extensions_crx_cache",
-    "Crashpad/reports",
-    "Crashpad/attachments",
-];
+fn default_data_dir(service: &str) -> &'static str {
+    if service.ends_with(".dev") {
+        DEFAULT_DEV_DATA_DIR
+    } else {
+        DEFAULT_DATA_DIR
+    }
+}
+
+fn legacy_default_data_dir(service: &str) -> &'static str {
+    if service.ends_with(".dev") {
+        "cache-dev"
+    } else {
+        LEGACY_PORTABLE_DATA_DIR
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -57,7 +78,8 @@ pub struct StorageManager {
     configured_root: RwLock<PathBuf>,
     default_root: PathBuf,
     pointer_path: PathBuf,
-    settings_path: RwLock<PathBuf>,
+    key: Zeroizing<Vec<u8>>,
+    service: String,
     restart_required: AtomicBool,
 }
 
@@ -65,13 +87,18 @@ impl StorageManager {
     pub fn initialize(
         legacy_settings_path: &Path,
         legacy_webview_path: &Path,
+        key: Zeroizing<Vec<u8>>,
+        service: &str,
     ) -> Result<Self, String> {
         let bootstrap_dir = legacy_settings_path
             .parent()
             .ok_or_else(|| "无法确定应用配置目录".to_string())?;
-        let local_data_dir = legacy_webview_path
+        let app_scoped_data_dir = legacy_webview_path
             .parent()
             .ok_or_else(|| "无法确定应用数据目录".to_string())?;
+        let local_data_dir = app_scoped_data_dir
+            .parent()
+            .ok_or_else(|| "无法确定系统应用数据目录".to_string())?;
         let executable =
             std::env::current_exe().map_err(|error| format!("无法确定程序路径：{error}"))?;
         let executable_dir = executable
@@ -79,12 +106,24 @@ impl StorageManager {
             .ok_or_else(|| "无法确定程序所在目录".to_string())?
             .to_path_buf();
         let pointer_path = bootstrap_dir.join(POINTER_FILE);
-        let legacy_portable_pointer = executable_dir.join(POINTER_FILE);
-        let legacy_portable_root = executable_dir.join(DEFAULT_DATA_DIR);
-        let default_root = local_data_dir.join(DEFAULT_DATA_DIR);
-        let mut pointer = read_pointer(&pointer_path)?;
-        if pointer.is_none() && legacy_portable_pointer != pointer_path {
-            pointer = read_pointer(&legacy_portable_pointer)?;
+        let pointer_backup_path = bootstrap_dir.join(POINTER_BACKUP_FILE);
+        let legacy_bootstrap_pointer = bootstrap_dir.join(LEGACY_POINTER_FILE);
+        let legacy_portable_pointer = executable_dir.join(LEGACY_POINTER_FILE);
+        let legacy_portable_root = executable_dir.join(LEGACY_PORTABLE_DATA_DIR);
+        let legacy_default_root = app_scoped_data_dir.join(legacy_default_data_dir(service));
+        let default_root = local_data_dir.join(default_data_dir(service));
+        let mut pointer = read_secure_pointer(&pointer_path, &key, service)?;
+        if pointer.is_none() && pointer_backup_path.is_file() {
+            pointer = read_secure_pointer(&pointer_backup_path, &key, service)?;
+        }
+        let mut plaintext_pointer_source = None;
+        if pointer.is_none() && legacy_bootstrap_pointer.is_file() {
+            pointer = read_plaintext_pointer(&legacy_bootstrap_pointer)?;
+            plaintext_pointer_source = Some(legacy_bootstrap_pointer.clone());
+        }
+        if pointer.is_none() && legacy_portable_pointer.is_file() {
+            pointer = read_plaintext_pointer(&legacy_portable_pointer)?;
+            plaintext_pointer_source = Some(legacy_portable_pointer.clone());
         }
         let requested_root = pointer
             .as_ref()
@@ -92,10 +131,10 @@ impl StorageManager {
             .unwrap_or_else(|| default_root.clone());
         let data_root = prepare_root(&requested_root)?;
 
-        if !pointer_path.exists() && legacy_portable_pointer.is_file() {
-            if let Some(pointer) = &pointer {
-                write_pointer(&pointer_path, pointer)?;
-            }
+        if let (Some(source), Some(pointer)) = (plaintext_pointer_source.as_ref(), pointer.as_ref())
+        {
+            write_secure_pointer(&pointer_path, &pointer_backup_path, pointer, &key, service)?;
+            fs::remove_file(source).map_err(|error| format!("无法删除旧明文存储位置：{error}"))?;
         }
 
         if let Some(migrate_from) = pointer
@@ -104,20 +143,29 @@ impl StorageManager {
             .map(PathBuf::from)
         {
             migrate_managed_root(&migrate_from, &data_root)?;
-            write_pointer(
+            write_secure_pointer(
                 &pointer_path,
+                &pointer_backup_path,
                 &StoragePointer {
                     data_root: path_text(&data_root),
                     migrate_from: None,
                 },
+                &key,
+                service,
             )?;
         } else if pointer.is_none() {
+            if legacy_default_root != data_root
+                && legacy_default_root.join(STORAGE_MARKER).is_file()
+            {
+                copy_managed_root(&legacy_default_root, &data_root)?;
+            }
             if legacy_portable_root != data_root
+                && legacy_portable_root != legacy_default_root
                 && legacy_portable_root.join(STORAGE_MARKER).is_file()
             {
                 copy_managed_root(&legacy_portable_root, &data_root)?;
             }
-            migrate_legacy_file(legacy_settings_path, &data_root.join(SETTINGS_FILE))?;
+            migrate_legacy_file(legacy_settings_path, &data_root.join(LEGACY_SETTINGS_FILE))?;
             migrate_legacy_webview(legacy_webview_path, &data_root.join(WEBVIEW_DIR))?;
         }
 
@@ -126,20 +174,50 @@ impl StorageManager {
             configured_root: RwLock::new(data_root.clone()),
             default_root,
             pointer_path,
-            settings_path: RwLock::new(data_root.join(SETTINGS_FILE)),
+            key,
+            service: service.into(),
             restart_required: AtomicBool::new(false),
         })
     }
 
-    pub fn settings_path(&self) -> Result<PathBuf, String> {
-        self.settings_path
-            .read()
-            .map(|path| path.clone())
-            .map_err(|error| error.to_string())
+    pub fn initialize_locked(
+        legacy_settings_path: &Path,
+        legacy_webview_path: &Path,
+        key: Zeroizing<Vec<u8>>,
+        service: &str,
+    ) -> Result<Self, String> {
+        let bootstrap_dir = legacy_settings_path
+            .parent()
+            .ok_or_else(|| "无法确定应用配置目录".to_string())?;
+        let app_scoped_data_dir = legacy_webview_path
+            .parent()
+            .ok_or_else(|| "无法确定应用数据目录".to_string())?;
+        let local_data_dir = app_scoped_data_dir
+            .parent()
+            .ok_or_else(|| "无法确定系统应用数据目录".to_string())?;
+        let default_root = prepare_root(&local_data_dir.join(default_data_dir(service)))?;
+        Ok(Self {
+            active_root: default_root.clone(),
+            configured_root: RwLock::new(default_root.clone()),
+            default_root,
+            pointer_path: bootstrap_dir.join(POINTER_FILE),
+            key,
+            service: service.into(),
+            restart_required: AtomicBool::new(false),
+        })
     }
 
+    #[cfg(target_os = "windows")]
     pub fn active_webview_path(&self) -> PathBuf {
         self.active_root.join(WEBVIEW_DIR)
+    }
+
+    pub fn active_root(&self) -> &Path {
+        &self.active_root
+    }
+
+    pub fn default_root(&self) -> &Path {
+        &self.default_root
     }
 
     pub fn configured_root(&self) -> Result<PathBuf, String> {
@@ -164,11 +242,7 @@ impl StorageManager {
         })
     }
 
-    pub fn configure_root(
-        &self,
-        requested: &Path,
-        settings_json: &str,
-    ) -> Result<StorageInfo, String> {
+    pub fn configure_root(&self, requested: &Path) -> Result<StorageInfo, String> {
         if self.restart_required.load(Ordering::Relaxed) {
             return Err("存储位置已经修改，请重启应用后再进行下一次修改".into());
         }
@@ -177,23 +251,21 @@ impl StorageManager {
         if same_path(&root, &current) {
             return self.info();
         }
-        fs::write(root.join(SETTINGS_FILE), settings_json)
-            .map_err(|error| format!("无法写入新设置目录：{error}"))?;
-        write_pointer(
+        let pointer_backup = self.pointer_path.with_file_name(POINTER_BACKUP_FILE);
+        write_secure_pointer(
             &self.pointer_path,
+            &pointer_backup,
             &StoragePointer {
                 data_root: path_text(&root),
                 migrate_from: Some(path_text(&self.active_root)),
             },
+            &self.key,
+            &self.service,
         )?;
         *self
             .configured_root
             .write()
             .map_err(|error| error.to_string())? = root.clone();
-        *self
-            .settings_path
-            .write()
-            .map_err(|error| error.to_string())? = root.join(SETTINGS_FILE);
         self.restart_required.store(true, Ordering::Relaxed);
         self.info()
     }
@@ -247,9 +319,16 @@ fn verify_managed_root(root: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn read_pointer(path: &Path) -> Result<Option<StoragePointer>, String> {
+fn read_plaintext_pointer(path: &Path) -> Result<Option<StoragePointer>, String> {
     if !path.exists() {
         return Ok(None);
+    }
+    if fs::metadata(path)
+        .map_err(|error| format!("无法检查存储引导文件大小：{error}"))?
+        .len()
+        > MAX_PLAINTEXT_POINTER
+    {
+        return Err("明文存储引导文件超过 64 KiB 安全上限".into());
     }
     let text =
         fs::read_to_string(path).map_err(|error| format!("无法读取存储引导文件：{error}"))?;
@@ -261,150 +340,68 @@ fn read_pointer(path: &Path) -> Result<Option<StoragePointer>, String> {
     Ok(Some(pointer))
 }
 
-fn write_pointer(path: &Path, pointer: &StoragePointer) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|error| format!("无法创建存储引导目录：{error}"))?;
-    }
-    let text = serde_json::to_string_pretty(pointer).map_err(|error| error.to_string())?;
-    fs::write(path, text).map_err(|error| format!("无法写入存储引导文件：{error}"))
-}
-
-fn migrate_managed_root(source: &Path, destination: &Path) -> Result<(), String> {
-    if same_path(source, destination) {
-        return Ok(());
-    }
-    verify_managed_root(source)?;
-    verify_managed_root(destination)?;
-    let source_settings = source.join(SETTINGS_FILE);
-    let destination_settings = destination.join(SETTINGS_FILE);
-    if source_settings.exists() {
-        if !destination_settings.exists() {
-            fs::copy(&source_settings, &destination_settings)
-                .map_err(|error| format!("迁移设置失败：{error}"))?;
+pub fn quarantine_pointer(config_dir: &Path) -> Result<Option<PathBuf>, String> {
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|error| error.to_string())?
+        .as_secs();
+    let quarantine = config_dir.join(format!("recovery-{timestamp}"));
+    let mut moved = false;
+    for name in [POINTER_FILE, POINTER_BACKUP_FILE, LEGACY_POINTER_FILE] {
+        let source = config_dir.join(name);
+        if source.is_file() {
+            fs::create_dir_all(&quarantine)
+                .map_err(|error| format!("无法创建存储恢复目录：{error}"))?;
+            fs::rename(&source, quarantine.join(name))
+                .map_err(|error| format!("无法隔离存储位置文件：{error}"))?;
+            moved = true;
         }
-        fs::remove_file(&source_settings).map_err(|error| format!("清理旧设置失败：{error}"))?;
     }
-    migrate_directory(&source.join(WEBVIEW_DIR), &destination.join(WEBVIEW_DIR))?;
-    Ok(())
+    Ok(moved.then_some(quarantine))
 }
 
-fn copy_managed_root(source: &Path, destination: &Path) -> Result<(), String> {
-    verify_managed_root(source)?;
-    verify_managed_root(destination)?;
-    let source_settings = source.join(SETTINGS_FILE);
-    let destination_settings = destination.join(SETTINGS_FILE);
-    if source_settings.is_file() && !destination_settings.exists() {
-        fs::copy(source_settings, destination_settings)
-            .map_err(|error| format!("迁移便携版设置失败：{error}"))?;
+fn read_secure_pointer(
+    path: &Path,
+    key: &[u8],
+    service: &str,
+) -> Result<Option<StoragePointer>, String> {
+    if !path.is_file() {
+        return Ok(None);
     }
-    copy_directory(&source.join(WEBVIEW_DIR), &destination.join(WEBVIEW_DIR))
+    let encoded = fs::read(path).map_err(|error| format!("无法读取加密存储位置：{error}"))?;
+    let plaintext = decrypt_envelope(key, service, EnvelopeKind::StoragePointer, &encoded)?;
+    let pointer: StoragePointer = serde_json::from_slice(&plaintext)
+        .map_err(|error| format!("加密存储位置格式无效：{error}"))?;
+    validate_pointer(&pointer)?;
+    Ok(Some(pointer))
 }
 
-fn migrate_legacy_file(source: &Path, destination: &Path) -> Result<(), String> {
-    if !source.is_file() || destination.exists() {
-        return Ok(());
-    }
-    fs::copy(source, destination).map_err(|error| format!("迁移旧设置失败：{error}"))?;
-    fs::remove_file(source).map_err(|error| format!("清理旧设置失败：{error}"))
+fn write_secure_pointer(
+    path: &Path,
+    backup: &Path,
+    pointer: &StoragePointer,
+    key: &[u8],
+    service: &str,
+) -> Result<(), String> {
+    validate_pointer(pointer)?;
+    let plaintext = serde_json::to_vec(pointer).map_err(|error| error.to_string())?;
+    let encoded = encrypt_envelope(key, service, EnvelopeKind::StoragePointer, &plaintext)?;
+    decrypt_envelope(key, service, EnvelopeKind::StoragePointer, &encoded)?;
+    atomic_replace(path, backup, &encoded)
 }
 
-fn migrate_legacy_webview(source: &Path, destination: &Path) -> Result<(), String> {
-    if !source.is_dir() || directory_size(source) == 0 {
-        return Ok(());
+fn validate_pointer(pointer: &StoragePointer) -> Result<(), String> {
+    if !Path::new(&pointer.data_root).is_absolute() {
+        return Err("存储引导文件中的目录不是绝对路径".into());
     }
-    migrate_directory(source, destination)
-}
-
-fn migrate_directory(source: &Path, destination: &Path) -> Result<(), String> {
-    if !source.is_dir() {
-        return Ok(());
-    }
-    if destination.exists() && directory_size(destination) > 0 {
-        copy_directory(source, destination)?;
-        return remove_directory_checked(source);
-    } else if destination.exists() {
-        fs::remove_dir_all(destination)
-            .map_err(|error| format!("准备迁移目标目录失败：{error}"))?;
-    }
-    if fs::rename(source, destination).is_ok() {
-        return Ok(());
-    }
-    copy_directory(source, destination)?;
-    remove_directory_checked(source)
-}
-
-fn copy_directory(source: &Path, destination: &Path) -> Result<(), String> {
-    if !source.is_dir() {
-        return Ok(());
-    }
-    fs::create_dir_all(destination).map_err(|error| error.to_string())?;
-    for entry in fs::read_dir(source).map_err(|error| error.to_string())? {
-        let entry = entry.map_err(|error| error.to_string())?;
-        let file_type = entry.file_type().map_err(|error| error.to_string())?;
-        let target = destination.join(entry.file_name());
-        if file_type.is_symlink() {
-            continue;
-        }
-        if file_type.is_dir() {
-            copy_directory(&entry.path(), &target)?;
-        } else if file_type.is_file() {
-            fs::copy(entry.path(), target).map_err(|error| error.to_string())?;
-        }
+    if pointer
+        .migrate_from
+        .as_deref()
+        .is_some_and(|path| !Path::new(path).is_absolute())
+    {
+        return Err("存储引导文件中的迁移目录不是绝对路径".into());
     }
     Ok(())
-}
-
-fn remove_directory_checked(path: &Path) -> Result<(), String> {
-    if !path.is_absolute() || path.parent().is_none() {
-        return Err("拒绝删除不安全的目录路径".into());
-    }
-    fs::remove_dir_all(path).map_err(|error| format!("删除旧数据目录失败：{error}"))
-}
-
-fn safe_cleanup(root: &Path) -> Result<u64, String> {
-    verify_managed_root(root)?;
-    let webview_root = root.join(WEBVIEW_DIR);
-    let before = safe_cache_size(&webview_root);
-    for relative in SAFE_CACHE_PATHS {
-        let target = webview_root.join(relative);
-        if !target.starts_with(&webview_root) {
-            return Err("拒绝清理 WebView2 数据目录之外的路径".into());
-        }
-        if target.is_dir() {
-            fs::remove_dir_all(&target)
-                .map_err(|error| format!("清理 {} 失败：{error}", target.display()))?;
-        } else if target.is_file() {
-            fs::remove_file(&target)
-                .map_err(|error| format!("清理 {} 失败：{error}", target.display()))?;
-        }
-    }
-    Ok(before.saturating_sub(safe_cache_size(&webview_root)))
-}
-
-fn safe_cache_size(webview_root: &Path) -> u64 {
-    SAFE_CACHE_PATHS
-        .iter()
-        .map(|relative| directory_size(&webview_root.join(relative)))
-        .sum()
-}
-
-fn directory_size(path: &Path) -> u64 {
-    let Ok(metadata) = fs::symlink_metadata(path) else {
-        return 0;
-    };
-    if metadata.file_type().is_symlink() {
-        return 0;
-    }
-    if metadata.is_file() {
-        return metadata.len();
-    }
-    fs::read_dir(path)
-        .ok()
-        .into_iter()
-        .flatten()
-        .filter_map(Result::ok)
-        .map(|entry| directory_size(&entry.path()))
-        .sum()
 }
 
 fn same_path(left: &Path, right: &Path) -> bool {
@@ -415,7 +412,7 @@ fn same_path(left: &Path, right: &Path) -> bool {
     }
 }
 
-fn path_text(path: &Path) -> String {
+pub(crate) fn path_text(path: &Path) -> String {
     let text = path.to_string_lossy();
     #[cfg(windows)]
     {
@@ -455,10 +452,14 @@ mod tests {
         fs::create_dir_all(identity.parent().expect("identity parent")).expect("identity dir");
         fs::write(&cache, [1, 2, 3]).expect("cache file");
         fs::write(&identity, [4, 5, 6]).expect("identity file");
+        fs::write(root.join(SETTINGS_FILE), b"encrypted-settings").expect("settings file");
+        fs::write(root.join(SETTINGS_BACKUP_FILE), b"encrypted-backup").expect("backup file");
 
         assert_eq!(safe_cleanup(&root).expect("cleanup"), 3);
         assert!(!cache.exists());
         assert!(identity.exists());
+        assert!(root.join(SETTINGS_FILE).exists());
+        assert!(root.join(SETTINGS_BACKUP_FILE).exists());
         fs::remove_dir_all(root).expect("remove test root");
     }
 
@@ -515,6 +516,86 @@ mod tests {
         );
         fs::remove_dir_all(source).expect("remove source root");
         fs::remove_dir_all(destination).expect("remove destination root");
+    }
+
+    #[test]
+    fn portable_copy_does_not_restore_plaintext_when_encrypted_settings_exist() {
+        let source = test_root("portable-plaintext-source");
+        let destination = test_root("portable-encrypted-destination");
+        prepare_root(&source).expect("prepare source");
+        prepare_root(&destination).expect("prepare destination");
+        fs::write(source.join(LEGACY_SETTINGS_FILE), b"legacy plaintext").expect("legacy settings");
+        fs::write(destination.join(SETTINGS_FILE), b"encrypted envelope")
+            .expect("encrypted settings");
+
+        copy_managed_root(&source, &destination).expect("copy portable root");
+
+        assert!(!destination.join(LEGACY_SETTINGS_FILE).exists());
+        assert!(source.join(LEGACY_SETTINGS_FILE).is_file());
+        fs::remove_dir_all(source).expect("remove source root");
+        fs::remove_dir_all(destination).expect("remove destination root");
+    }
+
+    #[test]
+    fn storage_pointer_is_encrypted_and_bound_to_its_kind() {
+        let root = test_root("secure-pointer");
+        fs::create_dir_all(&root).expect("root");
+        let path = root.join(POINTER_FILE);
+        let backup = root.join(POINTER_BACKUP_FILE);
+        let key = Zeroizing::new(vec![8u8; 32]);
+        let pointer = StoragePointer {
+            data_root: path_text(&root.join("private-location")),
+            migrate_from: None,
+        };
+        write_secure_pointer(&path, &backup, &pointer, &key, "test.app").expect("write");
+        let encoded = fs::read_to_string(&path).expect("encrypted pointer");
+        assert!(!encoded.contains("private-location"));
+        let loaded = read_secure_pointer(&path, &key, "test.app")
+            .expect("read")
+            .expect("pointer");
+        assert_eq!(loaded.data_root, pointer.data_root);
+        assert!(
+            decrypt_envelope(&key, "test.app", EnvelopeKind::Settings, encoded.as_bytes()).is_err()
+        );
+        fs::remove_dir_all(root).expect("remove test root");
+    }
+
+    #[test]
+    fn development_storage_uses_an_isolated_directory_name() {
+        assert_eq!(
+            default_data_dir("com.oooorca.interview-buddy"),
+            ".interview-buddy"
+        );
+        assert_eq!(
+            default_data_dir("com.oooorca.interview-buddy.dev"),
+            ".interview-buddy-dev"
+        );
+        assert_eq!(
+            legacy_default_data_dir("com.oooorca.interview-buddy"),
+            "cache"
+        );
+    }
+
+    #[test]
+    fn corrupt_encrypted_pointer_fails_closed_without_plaintext_fallback() {
+        let root = test_root("corrupt-pointer");
+        fs::create_dir_all(&root).expect("root");
+        let secure = root.join(POINTER_FILE);
+        let plaintext = root.join(LEGACY_POINTER_FILE);
+        fs::write(&secure, b"corrupted").expect("secure pointer");
+        fs::write(
+            &plaintext,
+            serde_json::to_vec(&StoragePointer {
+                data_root: path_text(&root.join("plaintext-root")),
+                migrate_from: None,
+            })
+            .expect("serialize"),
+        )
+        .expect("plaintext pointer");
+        assert!(read_secure_pointer(&secure, &[1u8; 32], "test.app").is_err());
+        assert!(secure.exists());
+        assert!(plaintext.exists());
+        fs::remove_dir_all(root).expect("remove test root");
     }
 
     #[cfg(windows)]

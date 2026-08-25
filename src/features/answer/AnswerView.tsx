@@ -4,9 +4,11 @@ import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { Highlight, themes, type Language } from "prism-react-renderer";
+import { useTranslation } from "react-i18next";
 import "katex/dist/katex.min.css";
 
 function CodeBlock({ code, language }: { code: string; language: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   async function copyCode() {
     await navigator.clipboard.writeText(code);
@@ -18,7 +20,7 @@ function CodeBlock({ code, language }: { code: string; language: string }) {
     <div className="answer-code-block">
       <div className="answer-code-header">
         <span>{language || "text"}</span>
-        <button onClick={() => void copyCode()}>{copied ? "已复制" : "复制"}</button>
+        <button onClick={() => void copyCode()}>{copied ? t("actions.copied") : t("actions.copy")}</button>
       </div>
       <Highlight theme={themes.vsDark} code={code.replace(/\n$/, "")} language={(language || "text") as Language}>
         {({ className, style, tokens, getLineProps, getTokenProps }) => (
@@ -53,6 +55,7 @@ const components: Components = {
 };
 
 export function AnswerView({ content }: { content: string }) {
+  const { t } = useTranslation();
   return (
     <article className="answer-markdown">
       <ReactMarkdown
@@ -61,7 +64,7 @@ export function AnswerView({ content }: { content: string }) {
         components={components}
         skipHtml
       >
-        {content || "waiting..."}
+        {content || t("answer.waiting")}
       </ReactMarkdown>
     </article>
   );

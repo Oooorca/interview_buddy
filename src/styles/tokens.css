@@ -1,0 +1,11 @@
+:root {
+  font-family: Inter, "Segoe UI", "Microsoft YaHei", sans-serif;
+  color: #f4f5f7;
+  background: transparent;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; cursor: default; }
+html, body, #root { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+button, input, textarea { font: inherit; }
+button { color: inherit; }
