@@ -30,6 +30,7 @@ xcap = "0.8"
 zeroize = { version = "1.9", features = ["derive"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+objc2-app-kit = { version = "0.3", features = ["NSWindow"] }
 objc2-core-graphics = { version = "0.3", features = ["CGWindow"] }
 screencapturekit = { version = "8", features = ["macos_13_0"] }
 security-framework = "3.7"

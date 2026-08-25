@@ -6,7 +6,7 @@ A private Windows and macOS interview companion for screenshots, dual-source tra
 
 ## Features
 
-- Capture-protected, always-on-top overlay
+- Capture-protected, always-on-top overlay, including macOS Spaces and full-screen apps
 - Protected drag-to-select region capture
 - Microphone and system-audio transcription through WASAPI or ScreenCaptureKit
 - Natural-pause VAD transcription with optional automatic answers

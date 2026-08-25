@@ -40,6 +40,8 @@ use transcription::{
     stop_system_audio_and_transcribe, system_audio_level, transcribe_audio,
     transcribe_system_audio_chunk,
 };
+#[cfg(target_os = "macos")]
+use window::configure_macos_overlay_spaces;
 #[cfg(target_os = "windows")]
 use window::query_display_affinity;
 use window::{
@@ -224,6 +226,8 @@ pub fn run() {
                 .ok_or_else(|| "缺少 main 窗口配置".to_string())?;
             let main_builder =
                 tauri::WebviewWindowBuilder::from_config(app.handle(), &main_config)?;
+            #[cfg(target_os = "macos")]
+            let main_builder = main_builder.visible_on_all_workspaces(true);
             #[cfg(target_os = "windows")]
             let main_builder = main_builder.data_directory(webview_data_path);
             let window = main_builder.build()?;
@@ -234,6 +238,8 @@ pub fn run() {
             }
             window.set_content_protected(true)?;
             window.set_always_on_top(true)?;
+            #[cfg(target_os = "macos")]
+            configure_macos_overlay_spaces(&window)?;
             window.show()?;
             #[cfg(target_os = "windows")]
             match query_display_affinity(&window) {

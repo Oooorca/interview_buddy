@@ -2258,6 +2258,7 @@ dependencies = [
  "base64 0.22.1",
  "image",
  "mouse_position",
+ "objc2-app-kit",
  "objc2-core-graphics",
  "raw-window-handle",
  "reqwest 0.12.28",

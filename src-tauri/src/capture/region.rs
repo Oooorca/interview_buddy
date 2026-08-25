@@ -5,6 +5,8 @@ use std::time::Duration;
 use tauri::{Emitter, Manager, State};
 use xcap::Monitor;
 
+#[cfg(target_os = "macos")]
+use crate::window::configure_macos_overlay_spaces;
 #[cfg(target_os = "windows")]
 use crate::window::query_display_affinity;
 use crate::{
@@ -229,6 +231,7 @@ pub(crate) fn open_region_selector(
     .content_protected(true);
     #[cfg(target_os = "macos")]
     let selector_builder = selector_builder
+        .visible_on_all_workspaces(true)
         .position(monitor_x as f64, monitor_y as f64)
         .inner_size(monitor_width as f64, monitor_height as f64);
     #[cfg(not(target_os = "macos"))]
@@ -244,7 +247,10 @@ pub(crate) fn open_region_selector(
     };
 
     #[cfg(target_os = "macos")]
-    let configured = selector.show().and_then(|_| selector.set_focus());
+    let configured = configure_macos_overlay_spaces(&selector)
+        .map_err(|error| error.to_string())
+        .and_then(|_| selector.show().map_err(|error| error.to_string()))
+        .and_then(|_| selector.set_focus().map_err(|error| error.to_string()));
     #[cfg(not(target_os = "macos"))]
     let configured = selector
         .set_position(tauri::PhysicalPosition::new(monitor_x, monitor_y))
