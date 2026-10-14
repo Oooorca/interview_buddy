@@ -4,6 +4,10 @@
 
 一个面向 Windows 与 macOS 的私人面试伙伴，提供截图、双路语音转写和 LLM 辅助回答。
 
+<p align="center">
+  <img src="resources/branding/mascot.png" alt="Interview Buddy 看板娘" width="240" />
+</p>
+
 ## 功能
 
 - 启用系统捕获保护的置顶悬浮窗，并可跨 macOS Space 与全屏应用显示

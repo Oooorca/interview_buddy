@@ -4,6 +4,10 @@ English | [简体中文](README.zh-CN.md)
 
 A private Windows and macOS interview companion for screenshots, dual-source transcription, and LLM-assisted answers.
 
+<p align="center">
+  <img src="resources/branding/mascot.png" alt="Interview Buddy mascot" width="240" />
+</p>
+
 ## Features
 
 - Capture-protected, always-on-top overlay, including macOS Spaces and full-screen apps
